@@ -237,13 +237,24 @@ uv pip install -e external/tau2-bench
 recuris check-data --benchmark tau2
 ```
 
-Choose a model. An open-source model served locally, or a frontier model served
-by a provider:
+Serve an open-source model locally. τ²-Bench drives the agent through tool
+calls, so the two tool-calling flags are required, not optional: without them
+vLLM rejects every request and every episode ends ungraded.
+
+```bash
+vllm serve <model-id> --port 8000 --served-model-name qwen3.6-27b \
+    --enable-auto-tool-choice --tool-call-parser hermes
+```
+
+`hermes` is the parser for Qwen; other families need their own (see vLLM's
+tool-calling docs). A frontier model served by a provider needs none of this.
+
+Now point the agent at it:
 
 ```bash
 export TAU2_GATE_TERM=1 TAU2_GATE_TERM_WM=1 TAU2_STATUS_BOARD=1
 
-# open-source example: vllm serve <model-id> --port 8000 --served-model-name qwen3.6-27b
+# open-source example
 export MODEL=openai/qwen3.6-27b
 export ARGS='{"api_base":"http://127.0.0.1:8000/v1","api_key":"dummy","temperature":0.0,"timeout":360,"num_retries":2}'
 

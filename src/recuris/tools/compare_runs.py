@@ -103,6 +103,17 @@ def check_pairable(
     """Reasons this pair should not be compared. Empty means go ahead."""
     problems: list[str] = []
     common = set(a) & set(b)
+    if not common:
+        # Not a weaker version of "too few tasks": there is nothing to compare,
+        # and every statistic below would be computed over the empty set. The
+        # bootstrap happily returns [+0.0%, +0.0%] for it, which reads as a
+        # confident finding of parity rather than as an absent comparison, so
+        # --allow-partial must not reach this case.
+        return [
+            f"{labels[0]} and {labels[1]} share no scored tasks. Either the "
+            "runs cover different tasks, or one of them produced no gradable "
+            "episode at all -- check its run output for ungraded episodes."
+        ]
     if len(common) < min_common:
         problems.append(
             f"only {len(common)} tasks in common (need {min_common}). A partial "

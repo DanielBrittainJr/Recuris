@@ -243,6 +243,31 @@ def main(argv: list[str] | None = None) -> int:
         f"[recuris] run complete: {getattr(results, 'timestamp', '')} "
         f"save_to={args.save_to}"
     )
+
+    # A run whose episodes all died before they could be graded still writes a
+    # results file and still "completes". Saying so is the difference between
+    # noticing a broken endpoint now and discovering it when the comparison
+    # reports 0 tasks in common.
+    simulations = list(getattr(results, "simulations", None) or [])
+    ungraded = [
+        sim for sim in simulations
+        if getattr(getattr(sim, "reward_info", None), "reward", None) is None
+    ]
+    if simulations and len(ungraded) == len(simulations):
+        reasons = sorted({str(getattr(s, "termination_reason", "?")) for s in ungraded})
+        print(
+            f"[recuris] every one of {len(simulations)} episodes ended ungraded "
+            f"({', '.join(reasons)}); this run has nothing to score.\n"
+            "          Check the agent endpoint first. tau2 drives the agent "
+            "through tool calls, so a server started without tool-calling "
+            "support fails every episode this way."
+        )
+        return 1
+    if ungraded:
+        print(
+            f"[recuris] {len(ungraded)} of {len(simulations)} episodes ended "
+            "ungraded; scoring will exclude them."
+        )
     return 0
 
 
