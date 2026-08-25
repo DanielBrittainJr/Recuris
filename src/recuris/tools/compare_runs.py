@@ -187,7 +187,11 @@ def main() -> None:
         print("refusing to pair these runs:")
         for problem in problems:
             print("  " + problem)
-        print("\nFinish the arms, or pass --allow-partial if you know why.")
+        if not (set(oa) & set(ob)):
+            print("\nThere is nothing to compare here; --allow-partial does not "
+                  "apply. Re-run whichever side produced no gradable episode.")
+        else:
+            print("\nFinish the runs, or pass --allow-partial if you know why.")
         raise SystemExit(1)
 
     (aw, an), (bw, bn) = total(oa), total(ob)

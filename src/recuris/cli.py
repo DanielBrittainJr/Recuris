@@ -208,6 +208,12 @@ def tta(argv: list[str]) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    # Before any subcommand module is imported: several of them read their
+    # endpoint into a module-level constant at import time, so loading the file
+    # later would be too late.
+    from recuris.paths import load_dotenv
+
+    load_dotenv()
     if not argv or argv[0] in ("-h", "--help", "help"):
         print(USAGE)
         return 0

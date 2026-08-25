@@ -173,8 +173,41 @@ def splits_root() -> Path:
     return _env_path("RECURIS_SPLITS_ROOT") or (repo_root() / "splits")
 
 
+def load_dotenv() -> list[str]:
+    """Load the repository-root ``.env`` into the environment.
+
+    The README tells the reader to put their endpoint in a ``.env`` file, so
+    every entry point has to honour it. tau2 used to be the only one that did,
+    and only by accident: the benchmark loads ``.env`` itself, so the tau2 arm
+    worked while the Terminal-Bench driver exited saying OPENAI_BASE_URL was
+    unset with the file sitting right there.
+
+    Anything already set in the environment wins, so an explicit export still
+    overrides the file. Returns the names loaded, never the values.
+    """
+    try:
+        env_file = repo_root() / ".env"
+    except PathError:
+        return []
+    if not env_file.is_file():
+        return []
+    loaded: list[str] = []
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        name, _, value = line.partition("=")
+        name = name.strip()
+        if not name or name in os.environ:
+            continue
+        os.environ[name] = value.strip().strip('"').strip("'")
+        loaded.append(name)
+    return loaded
+
+
 __all__ = [
     "PathError",
+    "load_dotenv",
     "path_prefix",
     "workspace_root",
     "external_root",
