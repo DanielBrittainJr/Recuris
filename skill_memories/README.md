@@ -60,9 +60,8 @@ the numbers were measured on, for a cosmetic gain.
 The same applies to everything else inside a package. Internal names, paths and
 tool references in these files are historical, and one manifest comment still
 names the project by the name it had before it was called Recuris. Nothing
-outside this directory does; `scripts/check_no_cjk.py` and the CI name check
-enforce that for source code and documentation, and stop here for the same
-reason.
+outside this directory does; the CI name check enforces that for source code and
+documentation, and stops here for the same reason.
 
 ## The protected set
 

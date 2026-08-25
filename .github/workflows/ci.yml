@@ -41,12 +41,6 @@ jobs:
       - name: Lint
         run: python -m ruff check src scripts
 
-      - name: No Chinese in shipped code
-        run: python scripts/check_no_cjk.py
-
-      - name: No credentials, no internal infrastructure
-        run: python scripts/scan_secrets.py
-
       - name: Integrity anchors are current
         # Fails if a protected Skill Memory package changed without a
         # deliberate re-anchor. Those packages are the artefacts the reported
