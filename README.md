@@ -29,7 +29,7 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 ---
 
 <p align="center">
-  <img src="assets/motivation.png" width="1000">
+  <img src="assets/results.png" width="1000">
 </p>
 
 ## 💡 Introduction
@@ -57,6 +57,10 @@ Overall, Recuris delivers **higher task success**, **larger gains as the horizon
 grows**, and **substantially fewer long-horizon failures**, across both frontier
 and open-source agents.
 
+<p align="center">
+  <img src="assets/motivation.png" width="1000">
+</p>
+
 ## 🔔 News
 
 - **[2026-08]** 🎉 Initial release: evaluation and evolution code, the evolved
@@ -66,8 +70,9 @@ and open-source agents.
 
 Task success (`avg@4`, %), each model evaluated with the benchmark's own
 reference agent alone and with that same agent plus Recuris. **Bold** marks the
-better of each pair, the subscript is Δ, and † marks a paired task-clustered
-bootstrap 95% CI excluding zero.
+better of each pair, the subscript is Δ, † marks a paired task-clustered
+bootstrap 95% CI excluding zero, and – marks a benchmark that model was not
+evaluated on.
 
 <table>
 <thead>
@@ -185,18 +190,6 @@ pairs, from a 3B open-source agent up to the strongest frontier models. The
 largest gains reach **+23.3** on τ²-Retail and **+16.8** on SkillFlow. The
 advantage grows with the interaction horizon, reaching **+32.2** on the longest
 tasks, and common long-horizon failure modes fall by up to **80%**.
-
-<p align="center">
-  <img src="assets/results.png" width="1000">
-</p>
-
-<sub>For every benchmark, the Skill Memory evaluated here is the one the
-evolution loop produced on the deployment model; it is then loaded and used
-directly at inference, with nothing evolved during evaluation and every base
-model frozen. Absolute τ² scores use our pinned judge model and are not
-comparable to the public τ²-Bench leaderboard; cross-arm comparisons are,
-because both arms share that judge exactly. – not evaluated on that
-benchmark.</sub>
 
 ## 🛠️ Getting Started
 
