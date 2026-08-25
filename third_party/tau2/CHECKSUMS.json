@@ -16,9 +16,9 @@
       "bytes": 9825437
     },
     "data/tau2/domains/telecom": {
-      "sha256": "86b3dd8d5a502c9e6afe8142cce94e4e75778d11f4e6ddf7ab5a22f5b1c3665b",
+      "sha256": "8df8bc0b47fb25e5d43f19e66bb03526ab04d5d322c7872d6c944ca4be837adc",
       "files": 23,
-      "bytes": 92732756
+      "bytes": 92732381
     },
     "data/tau2/domains/banking_knowledge": {
       "sha256": "76589e8b89a2e7c736f4245c456c86b13c8cdb4b4d5c7d28532ac573913e7746",
