@@ -763,15 +763,29 @@ class Driver:
             raise ValueError("run-id must contain only letters, digits, dot, underscore, or dash")
         if not (1 <= a.proxy_port <= 65535):
             raise ValueError("proxy-port must be between 1 and 65535")
+        # Open-worker campaigns evolve a memory *for* a model served elsewhere,
+        # so the worker is the one thing that must be free to differ. The user
+        # simulator stays pinned either way: it is not what is being optimised,
+        # and unfreezing it would make rounds incomparable to each other as
+        # well as to every other arm. RecurisDownstream re-checks this from its
+        # own constructor -- the duplication is deliberate, because this check
+        # runs before the downstream exists and that one guards direct callers.
+        self.open_worker = bool(getattr(a, "open_worker", False))
         frozen = {
-            "worker_model": DEFAULT_WORKER_MODEL,
-            "worker_reasoning": FORMAL_DOWNSTREAM_REASONING,
             "simulator_model": DEFAULT_SIMULATOR_MODEL,
             "simulator_reasoning": FORMAL_DOWNSTREAM_REASONING,
         }
+        if not self.open_worker:
+            frozen["worker_model"] = DEFAULT_WORKER_MODEL
+            frozen["worker_reasoning"] = FORMAL_DOWNSTREAM_REASONING
         for field, expected in frozen.items():
             if getattr(a, field) != expected:
                 raise ValueError(f"{field} is frozen at {expected!r} for formal Meta-Agent runs")
+        if self.open_worker and not getattr(a, "worker_llm_args", None):
+            raise ValueError(
+                "--open-worker requires --worker-llm-args JSON naming the "
+                "endpoint (api_base, temperature, timeout, num_retries)"
+            )
         self.benchmark_protocol = (
             getattr(a, "benchmark_protocol", None) or OFFICIAL_BENCHMARK_PROTOCOL
         )
@@ -903,6 +917,8 @@ class Driver:
                     worker_reasoning=a.worker_reasoning,
                     simulator_model=a.simulator_model,
                     simulator_reasoning=a.simulator_reasoning,
+                    worker_llm_args=getattr(a, "worker_llm_args", None),
+                    open_worker=self.open_worker,
                     artifact_namespace=a.run_id,
                     benchmark_protocol=self.benchmark_protocol,
                     resume_attempts=getattr(a, "eval_resume_attempts", 1),
@@ -10949,6 +10965,19 @@ def main():
                     help="frozen for formal runs")
     ap.add_argument("--worker-reasoning", choices=REASONING_LEVELS, default="medium",
                     help="frozen at medium for formal runs")
+    ap.add_argument("--open-worker", action="store_true",
+                    help=("evolve the memory for a downstream agent served "
+                          "elsewhere over an OpenAI-compatible endpoint. "
+                          "Requires --worker-model openai/<served-name> and "
+                          "--worker-llm-args. The user simulator stays frozen, "
+                          "so the arm remains single-variable."))
+    ap.add_argument("--worker-llm-args", default=None,
+                    help=("JSON for an --open-worker downstream. Required: "
+                          "api_base, temperature (0.0), timeout (360), "
+                          "num_retries (2). Optional: api_key, extra_body, "
+                          "stop_token_ids, max_tokens, reasoning_effort, "
+                          "allowed_openai_params. Validated by the same "
+                          "checker the standalone --open-downstream arm uses."))
     ap.add_argument("--simulator-model", default=DEFAULT_SIMULATOR_MODEL,
                     help="frozen Tau2 user simulator model")
     ap.add_argument("--simulator-reasoning", choices=REASONING_LEVELS, default="medium",
