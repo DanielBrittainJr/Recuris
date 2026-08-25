@@ -59,15 +59,3 @@ earlier design, superseded by `recuris.adapters.tau2.agent`, which registers
 itself at run time and needs no benchmark modification. The registry hunk was
 its registration inside a `try`/`ImportError`, so leaving both out changes
 nothing.
-
-## Verifying
-
-`setup.sh` runs the check itself; to repeat it later:
-
-```bash
-python scripts/verify_checksums.py third_party/tau2/CHECKSUMS.json external/tau2-bench
-```
-
-Text files are LF-normalised before hashing, because git rewrites line endings
-on some platforms and a checker that reports a false mismatch is a checker
-people turn off.
