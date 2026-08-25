@@ -11,7 +11,7 @@
 # means the run always talks to the proxy the driver started.
 
 : "${RECURIS_PROXY_PORT:=4000}"
-: "${RECURIS_META_MODEL:?RECURIS_META_MODEL must name the meta-agent's model}"
+: "${RECURIS_META_MODEL:?must name the model the meta-agent runs on}"
 
 ANTHROPIC_BASE_URL="http://127.0.0.1:${RECURIS_PROXY_PORT}"
 # Not a credential: the proxy accepts any token and injects the real key from
