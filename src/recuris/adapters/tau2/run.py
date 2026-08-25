@@ -83,7 +83,7 @@ def build_parser(prog: str = "recuris tau2") -> argparse.ArgumentParser:
     ap.add_argument(
         "--open-downstream",
         action="store_true",
-        help="the downstream agent is served elsewhere (a local open-weight "
+        help="the downstream agent is served elsewhere (a local open-source "
         "endpoint, or a frontier provider) via --agent-llm/--agent-llm-args. "
         "The user simulator and the assertion judge stay frozen.",
     )

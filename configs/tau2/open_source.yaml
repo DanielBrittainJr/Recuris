@@ -1,6 +1,6 @@
 extends: _base/tau2
 description: >-
-  Transfer arm over a locally served open-weight model. Set model to the served
+  Transfer arm over a locally served open-source model. Set model to the served
   name and OPENAI_BASE_URL to the endpoint. The user simulator and the judge
   stay on the frozen reference model, so the comparison stays single-variable.
 arm: skill
@@ -10,6 +10,6 @@ open_downstream: true
 model: null            # openai/<served-model-name>
 notes: >-
   The downstream llm_args differ from the frozen block above: a local endpoint
-  needs api_base, and most open-weight servers reject reasoning_effort. Pass
+  needs api_base, and most open-source servers reject reasoning_effort. Pass
   them on the command line; the validator names any key it does not recognise
   rather than dropping it.

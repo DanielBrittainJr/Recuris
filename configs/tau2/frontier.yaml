@@ -1,6 +1,6 @@
 extends: _base/tau2
 description: >-
-  Transfer arm over a frontier provider. Identical to open_weight except for
+  Transfer arm over a frontier provider. Identical to open_source except for
   the endpoint; both go through the same OpenAI-compatible path.
 arm: skill
 agent: recuris_agent

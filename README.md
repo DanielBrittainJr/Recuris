@@ -9,16 +9,17 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 </h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/🧠_Skill_Memory-blueviolet?style=for-the-badge" alt="Skill Memory" />
-  <img src="https://img.shields.io/badge/🔒_Frozen_Machine-blue?style=for-the-badge" alt="Frozen Machine" />
-  <img src="https://img.shields.io/badge/✅_Validation_Gated-success?style=for-the-badge" alt="Validation Gated" />
+  <img src="https://img.shields.io/badge/⏳_Long--Horizon-blueviolet?style=for-the-badge" alt="Long-Horizon" />
+  <img src="https://img.shields.io/badge/🔗_EM--WM_Coupling-blue?style=for-the-badge" alt="EM-WM Coupling" />
+  <img src="https://img.shields.io/badge/🧊_Training--free-success?style=for-the-badge" alt="Training-free" />
   <img src="https://img.shields.io/badge/🔁_Recursive_Evolution-orange?style=for-the-badge" alt="Recursive Evolution" />
   <br><br>
+  <!-- TODO: replace the # placeholders once the paper and channels are live -->
   <a href="#-citation"><img src="https://img.shields.io/badge/Paper-Coming_Soon-B31B1B.svg?logo=arxiv" alt="Paper"></a>
-  <a href="https://github.com/Gen-Verse/Recuris"><img src="https://img.shields.io/badge/Code-Recuris-2176BC.svg?logo=github" alt="Code"></a>
-  <a href="#-quick-start"><img src="https://img.shields.io/badge/Benchmarks-3_Long--Horizon-FF6F00.svg?logo=gnometerminal&logoColor=white" alt="Benchmarks"></a>
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.11_%7C_3.12-3776AB.svg?logo=python&logoColor=white" alt="Python"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-4C1.svg?logo=apache&logoColor=white" alt="License"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Huggingface-DailyPaper-FFD21E.svg?logo=huggingface" alt="Hugging Face Daily Paper"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Coverage-Recuris-2176BC.svg?logo=x" alt="X"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Video-Walkthrough-FF0000.svg?logo=youtube" alt="YouTube"></a>
+  <a href="https://github.com/Gen-Verse/Recuris"><img src="https://img.shields.io/badge/Code-Recuris-24292E.svg?logo=github" alt="Code"></a>
 </p>
 
 <p align="center">
@@ -28,7 +29,7 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 ---
 
 <p align="center">
-  <img src="assets/results.png" width="1000">
+  <img src="assets/motivation.png" width="1000">
 </p>
 
 ## 💡 Introduction
@@ -54,11 +55,7 @@ Recuris has the following key features:
 
 Overall, Recuris delivers **higher task success**, **larger gains as the horizon
 grows**, and **substantially fewer long-horizon failures**, across both frontier
-and open-weight agents.
-
-<p align="center">
-  <img src="assets/motivation.png" width="1000">
-</p>
+and open-source agents.
 
 ## 🔔 News
 
@@ -67,30 +64,139 @@ and open-weight agents.
 
 ## 📊 Results
 
-Task success (`avg@4`), agent alone versus the same agent with a Skill Memory.
+Task success (`avg@4`, %), each model evaluated with the benchmark's own
+reference agent alone and with that same agent plus Recuris. **Bold** marks the
+better of each pair, the subscript is Δ, and † marks a paired task-clustered
+bootstrap 95% CI excluding zero.
 
-| | Benchmark | Model | Agent alone | + Recuris | Gain |
-|---|---|---|---:|---:|---:|
-| **Frontier** | τ²-Retail | Doubao-2.0-Pro | 58.1 | **81.4** | **+23.3** |
-| | τ²-Retail | GPT-5.6 Sol | 58.3 | **76.1** | **+17.8** |
-| | τ²-Retail | Claude Opus 5 | 72.4 | **87.9** | **+15.6** |
-| | SkillFlow | Doubao-2.0-Pro | 34.6 | **51.4** | **+16.8** |
-| | τ²-Airline | GPT-5.6 Sol | 79.0 | **86.0** | **+7.0** |
-| **Open-weight** | SkillFlow | Qwen3.6-27B | 42.2 | **58.7** | **+16.6** |
-| | SkillFlow | Qwen3.6-35B | 35.3 | **48.8** | **+13.5** |
-| | τ²-Retail | Granite-4.1-3B | 9.7 | **23.0** | **+13.4** |
-| | τ²-Retail | GPT-OSS-20B | 50.6 | **60.8** | **+10.2** |
-| | τ²-Retail | Qwen3.6-27B | 62.8 | **71.2** | **+8.3** |
+<table>
+<thead>
+<tr>
+  <th align="left" rowspan="2">Model</th>
+  <th align="center" colspan="3"><i>Cross-task evolution</i></th>
+  <th align="center"><i>Within-task adaptation</i></th>
+</tr>
+<tr>
+  <th align="right">τ²-Retail</th>
+  <th align="right">τ²-Airline</th>
+  <th align="right">SkillFlow</th>
+  <th align="right">Terminal-Bench 2.1</th>
+</tr>
+</thead>
+<tbody>
+<tr><td colspan="5"><i>Open-source models</i></td></tr>
 
-Recuris improves **every** model–benchmark pair above, by **+7.0 to +23.3**
-points, from a 3B open-weight agent up to the strongest frontier models. The
+<tr><td align="left">Granite-4.1-3B</td>
+  <td align="right">9.7</td><td align="right">34.3</td>
+  <td align="right"><b>0.3</b></td><td align="right">0.6</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>23.0</b> <sub>+13.4†</sub></td>
+  <td align="right"><b>39.8</b> <sub>+5.5</sub></td>
+  <td align="right">0.0 <sub>−0.3</sub></td>
+  <td align="right"><b>3.1</b> <sub>+2.5</sub></td></tr>
+
+<tr><td align="left">Qwen3.5-4B</td>
+  <td align="right">68.0</td><td align="right">75.3</td>
+  <td align="right">6.0</td><td align="right">10.1</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>68.3</b> <sub>+0.3</sub></td>
+  <td align="right"><b>79.0</b> <sub>+3.8</sub></td>
+  <td align="right"><b>7.1</b> <sub>+1.1</sub></td>
+  <td align="right"><b>13.0</b> <sub>+2.9</sub></td></tr>
+
+<tr><td align="left">Qwen3.5-9B</td>
+  <td align="right">77.6</td><td align="right">75.5</td>
+  <td align="right">15.1</td><td align="right">17.4</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>79.6</b> <sub>+2.0</sub></td>
+  <td align="right"><b>78.4</b> <sub>+2.9</sub></td>
+  <td align="right"><b>18.4</b> <sub>+3.4</sub></td>
+  <td align="right"><b>20.5</b> <sub>+3.1</sub></td></tr>
+
+<tr><td align="left">GPT-OSS-20B</td>
+  <td align="right">50.6</td><td align="right">54.8</td>
+  <td align="right">7.8</td><td align="right">3.9</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>60.8</b> <sub>+10.2†</sub></td>
+  <td align="right"><b>59.3</b> <sub>+4.5†</sub></td>
+  <td align="right"><b>10.4</b> <sub>+2.6†</sub></td>
+  <td align="right"><b>6.7</b> <sub>+2.8</sub></td></tr>
+
+<tr><td align="left">Qwen3.6-27B</td>
+  <td align="right">62.8</td><td align="right">79.0</td>
+  <td align="right">42.2</td><td align="right">38.8</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>71.2</b> <sub>+8.3†</sub></td>
+  <td align="right"><b>80.0</b> <sub>+1.0</sub></td>
+  <td align="right"><b>58.7</b> <sub>+16.6†</sub></td>
+  <td align="right"><b>42.1</b> <sub>+3.3</sub></td></tr>
+
+<tr><td align="left">Qwen3.6-35B</td>
+  <td align="right">78.2</td><td align="right">80.3</td>
+  <td align="right">35.3</td><td align="right">33.1</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>78.5</b> <sub>+0.3</sub></td>
+  <td align="right"><b>81.5</b> <sub>+1.3</sub></td>
+  <td align="right"><b>48.8</b> <sub>+13.5†</sub></td>
+  <td align="right"><b>36.4</b> <sub>+3.3</sub></td></tr>
+
+<tr><td colspan="5"><i>Frontier models</i></td></tr>
+
+<tr><td align="left">Gemini 3.7 Flash</td>
+  <td align="right">73.5</td><td align="right"><b>86.5</b></td>
+  <td align="right">–</td><td align="right">79.8</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>78.3</b> <sub>+4.8</sub></td>
+  <td align="right">85.0 <sub>−1.5</sub></td>
+  <td align="right">–</td>
+  <td align="right"><b>82.4</b> <sub>+2.6</sub></td></tr>
+
+<tr><td align="left">GPT-5.6 Sol</td>
+  <td align="right">58.3</td><td align="right">79.0</td>
+  <td align="right">–</td><td align="right">83.2</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>76.1</b> <sub>+17.8†</sub></td>
+  <td align="right"><b>86.0</b> <sub>+7.0†</sub></td>
+  <td align="right">–</td>
+  <td align="right"><b>86.4</b> <sub>+3.2</sub></td></tr>
+
+<tr><td align="left">Claude Opus 5</td>
+  <td align="right">72.4</td><td align="right">89.5</td>
+  <td align="right">–</td><td align="right">84.6</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>87.9</b> <sub>+15.6†</sub></td>
+  <td align="right"><b>90.5</b> <sub>+1.0</sub></td>
+  <td align="right">–</td>
+  <td align="right"><b>88.4</b> <sub>+3.8</sub></td></tr>
+
+<tr><td align="left">Doubao-2.0-Pro <sub>(deployment)</sub></td>
+  <td align="right">58.1</td><td align="right">75.5</td>
+  <td align="right">34.6</td><td align="right">46.1</td></tr>
+<tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
+  <td align="right"><b>81.4</b> <sub>+23.3†</sub></td>
+  <td align="right"><b>80.5</b> <sub>+5.0</sub></td>
+  <td align="right"><b>51.4</b> <sub>+16.8†</sub></td>
+  <td align="right"><b>48.9</b> <sub>+2.9</sub></td></tr>
+</tbody>
+</table>
+
+Recuris improves task success in **35 of the 37** completed model–benchmark
+pairs, from a 3B open-source agent up to the strongest frontier models. The
+largest gains reach **+23.3** on τ²-Retail and **+16.8** on SkillFlow. The
 advantage grows with the interaction horizon, reaching **+32.2** on the longest
 tasks, and common long-horizon failure modes fall by up to **80%**.
 
-<sub>Each row is a paired comparison: same tasks, same trials, same model,
-differing only in whether the Skill Memory is loaded. Absolute τ² scores use our
-pinned judge model and are not comparable to the public τ²-Bench leaderboard;
-cross-arm comparisons are, because both arms share that judge exactly.</sub>
+<p align="center">
+  <img src="assets/results.png" width="1000">
+</p>
+
+<sub>For every benchmark, the Skill Memory evaluated here is the one the
+evolution loop produced on the deployment model; it is then loaded and used
+directly at inference, with nothing evolved during evaluation and every base
+model frozen. Absolute τ² scores use our pinned judge model and are not
+comparable to the public τ²-Bench leaderboard; cross-arm comparisons are,
+because both arms share that judge exactly. – not evaluated on that
+benchmark.</sub>
 
 ## 🛠️ Getting Started
 
@@ -109,7 +215,7 @@ OPENAI_API_KEY=...
 OPENAI_BASE_URL=...
 ```
 
-Any OpenAI-compatible endpoint. This is needed **even for open-weight arms**:
+Any OpenAI-compatible endpoint. This is needed **even for open-source arms**:
 τ²-Bench scores every episode with an LLM user simulator and an LLM assertion
 judge, both pinned to a reference model, and that pinning is part of the
 evaluation protocol.
@@ -149,9 +255,9 @@ recuris compare --a retail_skill --b retail_bare
 ```
 
 **Switching models** is just `$MODEL` and `$ARGS` — the two arms are otherwise
-untouched. Serve an open-weight model locally (`vllm serve <model-id> --port
+untouched. Serve an open-source model locally (`vllm serve <model-id> --port
 8000 --served-model-name qwen3.6-27b`), or point `api_base` at a provider for
-GPT / Claude and add what it needs:
+GPT / Claude / Gemini and add what it needs:
 
 ```bash
 export MODEL=openai/<provider-model>
@@ -248,7 +354,7 @@ recuris metaagent run --domain retail --run-id retail_v1 \
 
 `--worker-model` is the downstream agent being improved and `--meta-model` is
 the upstream meta-agent; both default to Doubao. To evolve a memory **for an
-open-weight downstream**, unfreeze the worker only — the user simulator stays
+open-source downstream**, unfreeze the worker only — the user simulator stays
 pinned, so rounds remain comparable:
 
 ```bash

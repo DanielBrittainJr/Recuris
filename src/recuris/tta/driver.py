@@ -83,7 +83,7 @@ META_MODEL = os.environ.get("RECURIS_TTA_META", "doubao-seed-2-1-pro-260628")
 META_API_BASE = (os.environ.get("RECURIS_META_BASE_URL", "").strip()
                  or WORKER_API_BASE)
 
-# Open-weight policy models (vLLM). Setting RECURIS_TTA_WORKER_MODEL switches the
+# Open-source policy models (vLLM). Setting RECURIS_TTA_WORKER_MODEL switches the
 # emitted agent block to the shape the K4 baselines used: an explicit api_key,
 # NO reasoning_effort (doubao-only; vLLM rejects it), and — for the qwen35-*
 # family — the enable_thinking:false chat-template flag, without which the

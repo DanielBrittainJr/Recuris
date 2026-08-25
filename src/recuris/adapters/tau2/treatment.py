@@ -21,7 +21,7 @@ Two treatments exist:
 
 ``validate_open_downstream_agent``
     The downstream agent is some other model reached over an OpenAI-compatible
-    endpoint (a locally served open-weight model, or a frontier provider),
+    endpoint (a locally served open-source model, or a frontier provider),
     while the user simulator and the assertion judge stay frozen. This is the
     configuration used for every transfer arm.
 """
