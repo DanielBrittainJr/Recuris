@@ -35,26 +35,26 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 ## 💡 Introduction
 
 **Recuris** is a recursive self-improvement framework that **improves a
-long-horizon agent by evolving its memory rather than its weights or its
-prompt**. A frozen agent is paired with a **Skill Memory** `M = (E, W, ρ, C)`;
-a meta-agent reads structured execution traces, localises each failure to one
-component of that memory, and patches only that component — and a deterministic
-validation gate decides on paired held-out evidence whether the patch survives.
-Recuris has the following key features:
+long-horizon agent by evolving its memory instead of its weights or its
+prompt**. A frozen agent is paired with a **Skill Memory** `M = (E, W, ρ, C)`.
+A meta-agent reads structured execution traces, locates each failure in one
+component of that memory, and patches only that component. A deterministic
+validation gate then decides, on paired held-out evidence, whether the patch
+survives. Recuris has the following key features:
 
-- **State-grounded memory use** — working memory drives skill invocation, so
-  retrieval is conditioned on verified task state instead of a chat history that
-  grows until the state is buried.
-- **Targeted memory evolution** — structured trajectories `(w_t, E_t, a_t, o_t)`
-  attribute a failure to a specific component, instead of nudging a monolithic
+- **State-grounded memory use.** Working memory drives skill invocation, so
+  retrieval is conditioned on verified task state rather than on a chat history
+  that grows until the state is buried.
+- **Targeted memory evolution.** Structured trajectories `(w_t, E_t, a_t, o_t)`
+  locate a failure in a specific component, instead of nudging a monolithic
   prompt from outcomes alone.
-- **Bounded by a validation gate** — candidates are admitted by paired held-out
+- **Bounded by a validation gate.** Candidates are admitted by paired held-out
   arithmetic and nothing else. No model votes on its own patch.
-- **Training-free and model-agnostic** — the downstream agent stays frozen, and
-  a memory evolved on one model transfers to others unchanged.
+- **Training-free and model-agnostic.** The downstream agent stays frozen, and a
+  memory evolved on one model transfers to others unchanged.
 
-Overall, Recuris delivers **higher task success**, **larger gains as the horizon
-grows**, and **substantially fewer long-horizon failures**, across both frontier
+Overall, Recuris achieves **higher task success**, **larger gains on longer
+horizons**, and **substantially fewer long-horizon failures**, on both frontier
 and open-source agents.
 
 <p align="center">
@@ -68,11 +68,10 @@ and open-source agents.
 
 ## 📊 Results
 
-Task success (`avg@4`, %), each model evaluated with the benchmark's own
-reference agent alone and with that same agent plus Recuris. **Bold** marks the
-better of each pair, the subscript is Δ, † marks a paired task-clustered
-bootstrap 95% CI excluding zero, and – marks a benchmark that model was not
-evaluated on.
+Task success (`avg@4`, %), each model run with the benchmark's own reference
+agent alone and with that same agent plus Recuris. **Bold** marks the better of
+each pair, the subscript is Δ, † marks a paired task-clustered bootstrap 95% CI
+excluding zero, and `n/a` means the model was not run on that benchmark.
 
 <table>
 <thead>
@@ -149,32 +148,32 @@ evaluated on.
 
 <tr><td align="left">Gemini 3.7 Flash</td>
   <td align="right">73.5</td><td align="right"><b>86.5</b></td>
-  <td align="right">–</td><td align="right">79.8</td></tr>
+  <td align="right">n/a</td><td align="right">79.8</td></tr>
 <tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
   <td align="right"><b>78.3</b> <sub>+4.8</sub></td>
   <td align="right">85.0 <sub>−1.5</sub></td>
-  <td align="right">–</td>
+  <td align="right">n/a</td>
   <td align="right"><b>82.4</b> <sub>+2.6</sub></td></tr>
 
 <tr><td align="left">GPT-5.6 Sol</td>
   <td align="right">58.3</td><td align="right">79.0</td>
-  <td align="right">–</td><td align="right">83.2</td></tr>
+  <td align="right">n/a</td><td align="right">83.2</td></tr>
 <tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
   <td align="right"><b>76.1</b> <sub>+17.8†</sub></td>
   <td align="right"><b>86.0</b> <sub>+7.0†</sub></td>
-  <td align="right">–</td>
+  <td align="right">n/a</td>
   <td align="right"><b>86.4</b> <sub>+3.2</sub></td></tr>
 
 <tr><td align="left">Claude Opus 5</td>
   <td align="right">72.4</td><td align="right">89.5</td>
-  <td align="right">–</td><td align="right">84.6</td></tr>
+  <td align="right">n/a</td><td align="right">84.6</td></tr>
 <tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
   <td align="right"><b>87.9</b> <sub>+15.6†</sub></td>
   <td align="right"><b>90.5</b> <sub>+1.0</sub></td>
-  <td align="right">–</td>
+  <td align="right">n/a</td>
   <td align="right"><b>88.4</b> <sub>+3.8</sub></td></tr>
 
-<tr><td align="left">Doubao-2.0-Pro <sub>(deployment)</sub></td>
+<tr><td align="left">Doubao-2.0-Pro <i>(deployment)</i></td>
   <td align="right">58.1</td><td align="right">75.5</td>
   <td align="right">34.6</td><td align="right">46.1</td></tr>
 <tr><td align="left">&nbsp;&nbsp;<b>+ Recuris</b></td>
@@ -185,42 +184,52 @@ evaluated on.
 </tbody>
 </table>
 
-Recuris improves task success in **35 of the 37** completed model–benchmark
+Recuris improves task success in **35 of the 37** completed model and benchmark
 pairs, from a 3B open-source agent up to the strongest frontier models. The
-largest gains reach **+23.3** on τ²-Retail and **+16.8** on SkillFlow. The
-advantage grows with the interaction horizon, reaching **+32.2** on the longest
-tasks, and common long-horizon failure modes fall by up to **80%**.
+largest gains reach **+23.3** on τ²-Retail and **+16.8** on SkillFlow. Gains
+grow with the interaction horizon, reaching **+32.2** on the longest tasks, and
+common long-horizon failure modes drop by up to **80%**.
 
 ## 🛠️ Getting Started
 
-Python 3.11 or 3.12, `git`, and — for SkillFlow and Terminal-Bench 2.1 — Docker.
+This repository provides the code for running Recuris on τ²-Bench, SkillFlow and
+Terminal-Bench 2.1, the Skill Memory packages produced by the evolution loop,
+and the frozen evaluation splits.
+
+### 📦 Install Packages
+
+Python 3.11 or 3.12 and `git`. SkillFlow and Terminal-Bench 2.1 also need
+Docker.
 
 ```bash
 git clone https://github.com/Gen-Verse/Recuris.git recuris
 cd recuris
+
 uv sync --extra all          # or: pip install -e ".[all]"
 ```
 
-Put your endpoint in a `.env` at the repository root, or export it:
+### ⚙️ Setup Environment Variables
+
+Put your endpoint in a `.env` file at the repository root, or export it:
 
 ```bash
 OPENAI_API_KEY=...
 OPENAI_BASE_URL=...
 ```
 
-Any OpenAI-compatible endpoint. This is needed **even for open-source arms**:
-τ²-Bench scores every episode with an LLM user simulator and an LLM assertion
-judge, both pinned to a reference model, and that pinning is part of the
-evaluation protocol.
+Any OpenAI-compatible endpoint works. This is needed even when the agent itself
+is an open-source model, because τ²-Bench scores every episode with an LLM user
+simulator and an LLM assertion judge, and both stay pinned to a reference model.
 
 ## 🚀 Quick Start
 
-Every run below is a **pair** — a skill arm and a bare control that differ in
-the flags shown and nothing else. Run both, or the number means nothing.
+Each benchmark is run twice, once with a Skill Memory loaded and once without.
+The two runs differ only in the flags shown below. Both are needed, because the
+number that matters is the difference between them.
 
-<br/>
+### 🔹 **τ²-Bench (retail and airline)**
 
-### 🔹 τ²-Bench
+Set up the benchmark:
 
 ```bash
 bash third_party/tau2/setup.sh
@@ -228,18 +237,30 @@ uv pip install -e external/tau2-bench
 recuris check-data --benchmark tau2
 ```
 
+Choose a model. An open-source model served locally, or a frontier model served
+by a provider:
+
 ```bash
 export TAU2_GATE_TERM=1 TAU2_GATE_TERM_WM=1 TAU2_STATUS_BOARD=1
 
+# open-source example: vllm serve <model-id> --port 8000 --served-model-name qwen3.6-27b
 export MODEL=openai/qwen3.6-27b
 export ARGS='{"api_base":"http://127.0.0.1:8000/v1","api_key":"dummy","temperature":0.0,"timeout":360,"num_retries":2}'
 
+# frontier example
+# export MODEL=openai/<provider-model>
+# export ARGS='{"api_base":"'"$OPENAI_BASE_URL"'","api_key":"'"$OPENAI_API_KEY"'","temperature":0.0,"timeout":360,"num_retries":2,"reasoning_effort":"high","allowed_openai_params":["reasoning_effort"]}'
+```
+
+Run both configurations and compare them:
+
+```bash
 # with Skill Memory
 recuris tau2 --domain retail --agent recuris_agent --skill-memory tau2_retail \
     --open-downstream --agent-llm "$MODEL" --agent-llm-args "$ARGS" \
     --num-trials 4 --max-concurrency 4 --save-to retail_skill
 
-# control
+# without
 recuris tau2 --domain retail --agent llm_agent \
     --open-downstream --agent-llm "$MODEL" --agent-llm-args "$ARGS" \
     --num-trials 4 --max-concurrency 4 --save-to retail_bare
@@ -247,29 +268,31 @@ recuris tau2 --domain retail --agent llm_agent \
 recuris compare --a retail_skill --b retail_bare
 ```
 
-**Switching models** is just `$MODEL` and `$ARGS` — the two arms are otherwise
-untouched. Serve an open-source model locally (`vllm serve <model-id> --port
-8000 --served-model-name qwen3.6-27b`), or point `api_base` at a provider for
-GPT / Claude / Gemini and add what it needs:
+#### Notes:
 
-```bash
-export MODEL=openai/<provider-model>
-export ARGS='{"api_base":"'"$OPENAI_BASE_URL"'","api_key":"'"$OPENAI_API_KEY"'","temperature":0.0,"timeout":360,"num_retries":2,"reasoning_effort":"high","allowed_openai_params":["reasoning_effort"]}'
-```
+* **`--domain`** is `retail` or `airline`. For airline, use
+  `--skill-memory tau2_airline`.
+* **`--agent-llm-args`** must be identical in both runs. It is validated rather
+  than merged, so an unknown key raises an error instead of being dropped
+  silently.
+* Switching models means changing `$MODEL` and `$ARGS`. Nothing else changes.
+  Some servers need extras, for example
+  `"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}` for Qwen.
 
-`$ARGS` must be identical between the two arms; it is validated rather than
-merged, so an unknown key is an error instead of a silent drop. For **airline**,
-use `--domain airline --skill-memory tau2_airline`.
+### 🔹 **SkillFlow**
 
-### 🔹 SkillFlow
+Set up the benchmark and build the task images once:
 
 ```bash
 uv sync --extra skillflow && pip install huggingface_hub
 bash third_party/skillflow/setup.sh
+
 ./external/SkillFlow/docker/harbor-cli-base/build.sh
 python external/SkillFlow/utils/prebuild_task_images.py \
     --tasks-root external/SkillFlow/test_tasks
 ```
+
+Generate the configs for both runs, then execute them:
 
 ```bash
 export MODEL=openai/qwen3.6-27b
@@ -281,17 +304,23 @@ recuris skillflow render-configs --arm skill --routing default \
     --model "$MODEL" --base-url "$BASE" \
     --skill-memory skillflow --out configs/skillflow/generated
 
-# one job at a time -- concurrent harbor jobs exhaust the Docker IPv4 pool
 for cfg in configs/skillflow/generated/bare_*.yaml;  do harbor run -c "$cfg" --yes; done
 for cfg in configs/skillflow/generated/skill_*.yaml; do harbor run -c "$cfg" --yes; done
 
 recuris skillflow score --bare jobs/bare --skill jobs/skill
 ```
 
-Configs are generated rather than committed, so the two arms cannot drift and no
-credential is ever written to disk. Switching models is again just `$MODEL`.
+#### Notes:
 
-### 🔹 Terminal-Bench 2.1
+* Run the jobs **one at a time**. Concurrent harbor jobs exhaust the Docker IPv4
+  address pool, and the resulting failure looks like something else entirely.
+* Configs are generated rather than committed, so the two runs cannot drift
+  apart and no credential is ever written to disk.
+* **`--routing default`** is model-agnostic and is the right choice for new
+  work. `--routing frozen_insample` reproduces our reported numbers and applies
+  six per-family overrides that were chosen in-sample.
+
+### 🔹 **Terminal-Bench 2.1 (test-time adaptation)**
 
 ```bash
 uv sync --extra tb21
@@ -299,28 +328,46 @@ bash third_party/tb21/setup.sh
 recuris check-data --benchmark tb21
 ```
 
+On this benchmark a task may be attempted several times in a row, and it stops
+as soon as one attempt succeeds. `--rounds` sets how many attempts each task
+gets. There are three configurations:
+
+| Configuration | What the agent carries | After a failed attempt |
+|---|---|---|
+| `bare` | nothing, the stock agent | nothing changes, the next attempt starts over |
+| `m0` | a fixed Skill Memory, the seed package | nothing changes, the next attempt gets the same package |
+| `tta` | the same package, as a per-task copy | the meta-agent reads the failed trajectory and writes a new card into that copy, which the next attempt carries |
+
 ```bash
-# smoke: one task, one round
+# smoke test: one task, one attempt
 recuris tta run --taskset splits/tb21/tta_taskset_v3.json \
     --run-id smoke --arm m0 --limit 1 --rounds 1
 
-# the three arms, all on the same attempt budget
-for arm in bare m0 tta; do
+# all three configurations, four attempts each
+for cfg in bare m0 tta; do
     recuris tta run --taskset splits/tb21/tta_taskset_v3.json \
-        --run-id demo --arm "$arm" --rounds 2 --concurrency 3
+        --run-id demo --arm "$cfg" --rounds 4 --concurrency 3
 done
 ```
 
-`bare` is the stock agent, `m0` adds the seed package with no learning between
-attempts, and `tta` lets the meta-agent write a card after each failure that the
-next attempt carries. All three get the same number of attempts — otherwise the
-comparison measures retries, not adaptation.
+#### Notes:
 
-### 🔹 Evolving a Skill Memory
+* Give all three configurations the same `--rounds`. Comparing `tta` at four
+  attempts against `bare` at one mostly measures the extra attempts rather than
+  adaptation.
+* `m0` against `bare` isolates the value of having a Skill Memory at all. `tta`
+  against `m0` isolates the value of updating it between attempts, since both
+  carry a package and both get the same number of attempts.
+* At four attempts, that second comparison is worth **+2.3** points, 60.9%
+  against 58.6%, which is not significant at this sample size. We report it
+  that way rather than as a headline number.
 
-The recursive loop: a meta-agent (**upstream**) reads failed trajectories from
-the agent being improved (**downstream**), patches one memory component, and a
-gate admits it only on paired held-out evidence.
+### 🔹 **Evolving a Skill Memory**
+
+This is the recursive loop. A meta-agent, the **upstream** model, reads failed
+trajectories from the agent being improved, the **downstream** model. It patches
+one component of the memory, and a gate admits the patch only on paired held-out
+evidence.
 
 ```bash
 uv sync --extra metaagent
@@ -334,7 +381,7 @@ RECURIS_META_API_KEY=...
 ```
 
 ```bash
-# fails on the plumbing before you spend benchmark budget
+# one scoped session, zero simulations: checks the plumbing first
 recuris metaagent qualify --run-id qsmoke --proxy-port 4047
 
 recuris metaagent run --domain retail --run-id retail_v1 \
@@ -345,10 +392,8 @@ recuris metaagent run --domain retail --run-id retail_v1 \
     --max-concurrency 6 --max-sims 1400 --proxy-port 4047
 ```
 
-`--worker-model` is the downstream agent being improved and `--meta-model` is
-the upstream meta-agent; both default to Doubao. To evolve a memory **for an
-open-source downstream**, unfreeze the worker only — the user simulator stays
-pinned, so rounds remain comparable:
+To evolve a memory **for an open-source downstream model**, unfreeze the worker
+only. The user simulator stays pinned, so rounds remain comparable:
 
 ```bash
 recuris metaagent run --domain retail --run-id retail_gptoss_v1 \
@@ -360,13 +405,18 @@ recuris metaagent run --domain retail --run-id retail_gptoss_v1 \
     --meta-workflow hierarchical --max-concurrency 6 --proxy-port 4047
 ```
 
-Evolving *for* a model beats reusing a package evolved elsewhere: on
-GPT-OSS-20B a rebuilt package gained **+10.2** where the general-purpose package
-transferred negatively.
+#### Notes:
 
-> 💸 **Cost.** A campaign is days of wall-clock and thousands of model calls.
-> Start with `qualify`, then a single round, before committing budget. A round
-> that accepts nothing is a result — that is the gate working.
+* **`--meta-model`** is the upstream meta-agent and **`--worker-model`** is the
+  downstream agent being improved. Both default to Doubao.
+* **`--base neutral`** starts from a deterministic seed package, so no
+  hand-written domain profile enters the loop.
+* Start with `qualify` and then a single round. Each round writes a full record:
+  the evidence the session was given, the plan it produced, the gate arithmetic,
+  and the ledger entry. A round that admits nothing is a valid outcome.
+* Evolving a package for a specific model beats reusing one evolved elsewhere.
+  On GPT-OSS-20B a rebuilt package gained **+10.2**, while the general-purpose
+  package transferred negatively.
 
 ## 📖 Citation
 
