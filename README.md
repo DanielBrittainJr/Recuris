@@ -198,8 +198,7 @@ and the frozen evaluation splits.
 
 ### 📦 Install Packages
 
-Python 3.11 or 3.12 and `git`. SkillFlow and Terminal-Bench 2.1 also need
-Docker.
+Python 3.12 and `git`. SkillFlow and Terminal-Bench 2.1 also need Docker.
 
 ```bash
 git clone https://github.com/Gen-Verse/Recuris.git recuris
