@@ -1,0 +1,8 @@
+description: >-
+  Terminal-Bench 2.1 control: the stock agent, given the same attempt budget as
+  the adapting arm so the comparison is not N attempts against one.
+benchmark: tb21
+arm: bare
+skill_memory: null
+max_concurrency: 3
+split: splits/tb21/tta_taskset_v3.json

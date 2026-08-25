@@ -1,0 +1,168 @@
+diff --git a/family_job_runner.py b/family_job_runner.py
+index acb1739..ae4740b 100644
+--- a/family_job_runner.py
++++ b/family_job_runner.py
+@@ -114,16 +114,36 @@ def load_group_task_ranking(dataset_path: Path) -> list[str] | None:
+     return ordered_names
+ 
+ 
++def is_valid_task_dir_compat(path: Path, disable_verification: bool) -> bool:
++    task_paths = TaskPaths(path)
++    is_valid = getattr(task_paths, "is_valid", None)
++    if callable(is_valid):
++        return bool(is_valid(disable_verification=disable_verification))
++
++    if not path.is_dir():
++        return False
++    if not task_paths.config_path.exists():
++        return False
++    if not (task_paths.instruction_path.exists() or task_paths.readme_path.exists()):
++        return False
++    if disable_verification:
++        return True
++    return task_paths.environment_dir.exists()
++
++
+ def resolve_group_task_paths(dataset_path: Path, disable_verification: bool) -> list[Path]:
+     dataset_root = resolve_dataset_path(dataset_path)
+-    task_paths = sorted(
+-        [
+-            path.resolve()
+-            for path in dataset_root.iterdir()
+-            if TaskPaths(path).is_valid(disable_verification=disable_verification)
+-        ],
+-        key=lambda path: path.name,
+-    )
++    if is_valid_task_dir_compat(dataset_root, disable_verification=disable_verification):
++        task_paths = [dataset_root.resolve()]
++    else:
++        task_paths = sorted(
++            [
++                path.resolve()
++                for path in dataset_root.iterdir()
++                if is_valid_task_dir_compat(path, disable_verification=disable_verification)
++            ],
++            key=lambda path: path.name,
++        )
+     if not task_paths:
+         raise ValueError(f"No valid tasks found under dataset: {dataset_root}")
+ 
+@@ -413,9 +433,16 @@ def run_group_job(
+         async def on_trial_ended_hook(event: TrialHookEvent) -> None:
+             await asyncio.to_thread(on_trial_ended_hook_sync, event)
+ 
+-        job = Job(config=group_config)
+-        job.on_trial_ended(on_trial_ended_hook)
+-        result = asyncio.run(job.run())
++        async def run_job_async():
++            create = getattr(Job, "create", None)
++            if callable(create):
++                job = await create(group_config)
++            else:
++                job = Job(config=group_config)
++            job.on_trial_ended(on_trial_ended_hook)
++            return await job.run()
++
++        result = asyncio.run(run_job_async())
+         return GroupResult(
+             group_name=group_name,
+             job_name=group_config.job_name or group_name,
+diff --git a/libs/harbor_noinstall_agents/agents.py b/libs/harbor_noinstall_agents/agents.py
+index e93e657..bb6124f 100644
+--- a/libs/harbor_noinstall_agents/agents.py
++++ b/libs/harbor_noinstall_agents/agents.py
+@@ -1,10 +1,20 @@
+ from __future__ import annotations
+ 
++import base64
+ import json
+ import os
+ import shlex
+ 
+-from harbor.agents.installed.base import ExecInput
++try:
++    from harbor.agents.installed.base import ExecInput
++except ImportError:  # Harbor >=0.20 no longer exposes ExecInput here; only optional Kimi/Codex paths need it.
++    from dataclasses import dataclass
++
++    @dataclass
++    class ExecInput:  # pragma: no cover - compatibility shim for unused optional agents
++        command: str
++        env: dict[str, str] | None = None
++
+ from harbor.agents.installed.claude_code import ClaudeCode
+ from harbor.agents.installed.qwen_code import QwenCode
+ from harbor.environments.base import BaseEnvironment
+@@ -94,6 +104,72 @@ class NoInstallQwenCode(_NoInstallSetupMixin, QwenCode):
+     def name() -> str:
+         return QwenCode.name()
+ 
++    async def run(self, instruction: str, environment: BaseEnvironment, context):
++        # Template-injection fix. Overriding run() bypasses the installed-agent
++        # base class's prompt_template_path hook, so a template passed through
++        # kwargs was silently ignored and the skill arm ran as a bare baseline.
++        # Render it here exactly as the base class would; no template, no change.
++        _tpl = getattr(self, "_prompt_template_path", None)
++        if _tpl:
++            from harbor.utils.templating import render_prompt_template
++            instruction = render_prompt_template(_tpl, instruction)
++        env = dict(getattr(self, "_resolved_env_vars", {}))
++        for key in ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "NO_PROXY", "no_proxy"):
++            value = self._extra_env.get(key) or os.environ.get(key)
++            if value:
++                env[key] = value
++        if self.model_name:
++            env["OPENAI_MODEL"] = self.model_name.split("/", 1)[-1]
++        elif "OPENAI_MODEL" in os.environ:
++            env["OPENAI_MODEL"] = os.environ["OPENAI_MODEL"]
++        else:
++            env["OPENAI_MODEL"] = "qwen3-coder-plus"
++
++        await self.exec_as_agent(
++            environment,
++            command=(
++                "mkdir -p /logs/agent && "
++                "(env | grep -E '^(OPENAI_API_KEY|OPENAI_BASE_URL|OPENAI_MODEL|HTTP_PROXY|HTTPS_PROXY|http_proxy|https_proxy)=' "
++                "| sed -E 's/=.*/=present/' > /logs/agent/qwen-env-debug.txt || true)"
++            ),
++            env=env,
++        )
++
++        skills_command = self._build_register_skills_command()
++        if skills_command:
++            await self.exec_as_agent(environment, command=skills_command, env=env)
++
++        mcp_command = self._build_register_mcp_servers_command()
++        if mcp_command:
++            await self.exec_as_agent(environment, command=mcp_command, env=env)
++
++        encoded_prompt = shlex.quote(base64.b64encode(instruction.encode("utf-8")).decode("ascii"))
++        resume_flag = "--continue " if getattr(self, "_resume", False) else ""
++        try:
++            await self.exec_as_agent(
++                environment,
++                command=(
++                    ". ~/.nvm/nvm.sh; "
++                    "PROMPT_FILE=/tmp/qwen-code-prompt.txt; "
++                    f"printf %s {encoded_prompt} | base64 -d > \"$PROMPT_FILE\"; "
++                    "qwen --yolo --auth-type openai "
++                    "--openai-api-key \"$OPENAI_API_KEY\" "
++                    "--openai-base-url \"${OPENAI_BASE_URL:-https://api.openai.com/v1}\" "
++                    f"--chat-recording {resume_flag}"
++                    "--prompt=\"$(cat \"$PROMPT_FILE\")\" "
++                    "2>&1 | stdbuf -oL tee /logs/agent/qwen-code.txt"
++                ),
++                env=env,
++            )
++        finally:
++            try:
++                await self.exec_as_agent(
++                    environment,
++                    command="cp -r ~/.qwen/projects/ /logs/agent/qwen-sessions/ 2>/dev/null || true",
++                )
++            except Exception:
++                pass
++
+     def create_run_agent_commands(self, instruction: str):
+         original_env = {key: os.environ.get(key) for key in self._extra_env}
+         try:

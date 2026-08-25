@@ -1,0 +1,62 @@
+{% raw %}# MACHINE — Pre-Submit Verification (INVARIANT, runs before every "done")
+
+TRIGGER: Every task that writes a graded artifact (.xlsx/.json/.md/.docx/.pptx). No exceptions. The #1 cause of failure here is NOT wrong math — it is shipping a correct answer in the wrong artifact shape, or stopping before checking. Solve, then run this loop.
+
+TECHNIQUE:
+1. ENUMERATE THE CONTRACT. Re-read the acceptance criteria and list every graded item literally: named cells as `sheet!cell`; JSON keys INCLUDING nested sub-keys; verbatim literal phrases (case-sensitive); file-path form (basename or full path?); row/line counts; required formula tokens; size bounds. Treat the prompt's "Verification"/"the grader checks" bullets as a floor, not a hint.
+2. RE-OPEN THE PRODUCED FILE. Never trust your generation script's success print. Load the file back from disk and assert each enumerated item against the REOPENED file:
+   - Excel: A1 header populated on EVERY sheet (not just Summary) — a blank detail-sheet A1 can `SystemExit`-crash the whole suite; `wb.sheetnames == exact set AND order` (no `Name1/Name2` duplicates); value-graded cells hold a NUMBER, not a formula-string or None — if formulas are required, confirm a cached `<v>` is present; named-range COUNT and each TARGET address; numeric dtype for anything the grader adds/compares (`v+1` on a string throws).
+   - JSON/MD: every nested sub-key present (list-of-objects vs list-of-strings matters); literal phrases present CASE-SENSITIVE and word-for-word (paraphrase fails grep); basename in filename fields; required `Label:` at line-START as plain text (markdown `**Label:**` breaks `^\s*Label:`); every graded number as an unbroken `{:,.2f}` token with the sign adjacent to the digits (no `$` or space between `-` and the first digit); non-empty-line count inside the stated bound.
+   - PPTX: re-open the zip and read the XML — font size/name(BOTH `<a:ea>` and `<a:latin>`)/bold/italic on each run's `rPr` (paragraph-level defaults leave run `sz`=0); shape width >= 0.9 * the FILE's actual slide width; real `<a:buAutoNum>` for auto-numbered bullets.
+3. THRESHOLD BEATS YOUR COUNT. A stated ">=85 named ranges" is binding even if your example list shows 78. Never write "meets requirement: True (note: only 78)."
+4. A WATCHED FAILURE IS A REAL FAILURE. If any self-check flags a mismatch, FIX THE OUTPUT. Never re-label it a "bad check" or "bad verify script" and ship anyway.
+5. IMPLAUSIBILITY GATE. All-zero/empty results, an equity fund with 11 stock holdings, a 60x AUM, a value outside its physical range — treat as red flags and re-derive before submitting.
+
+SELF-CHECK (say YES to all before "done"): I re-opened the file from disk (not read my script's log). Every enumerated cell/key/phrase/count asserted against the reopened file. Every value-graded cell is a number, not a formula-string. Sheetnames exact. No self-check I watched fail was rationalized away. No result trips the implausibility gate.
+
+SOURCE: 02_orchestra_archive_refresh_model (dismissed own failing verify as "bad check"), 03_university_faculty_model ("All verification checks pass" while cells held formulas), peregrine_rebate_template_update / atlas_refund_reserve_template_merge / cedar_accrual_rollforward (blank detail A1 → SystemExit), wildlife-field-guide-caption-cleanup (declared success without inspecting XML), harbor_syncpack_28v56 / harbor_reagentkit_bulk (number token broken by `$`), fund-snapshot-canonical (11-of-450 stock count not sanity-checked). SkillFlow synthesis §3.3.
+
+## FAMILY CARDS (matched for this task family)
+
+### [C18]
+TRIGGER — a 13F task asks for stock-like holdings only, and/or resolves a fund/manager by a name query across COVERPAGE/INFOTABLE.tsv.
+
+TECHNIQUE
+- "Stock-like" excludes DERIVATIVE rows where the PUTCALL column is populated (Put/Call). Filtering only on SSHPRNAMTTYPE=='SH' leaves options in and corrupts largest-buy/sell and counts — check PUTCALL AND the share/class fields.
+- "Resolve/match a manager query" means FUZZY nearest-name match (e.g. rapidfuzz WRatio), not a literal string equality; disambiguate among multiple filers/amendments and pick the single correct accession before summing.
+- Before trusting a substring class filter, print the distinct TITLEOFCLASS values and confirm the include/exclude rules capture the dominant equity encoding.
+
+SELF-CHECK — treat these as RED FLAGS that force a re-derive, not shippable answers: an all-zero/empty result; an equity fund showing only ~11 of hundreds of holdings as stock; an AUM off by an order of magnitude (e.g. 60x) versus the filing total. Sanity-check stock count and stock AUM as a plausible fraction of the totals.
+
+SOURCE: fund-shift-screen & cross-quarter-reconciliation (PUTCALL option rows not excluded), fund-snapshot-canonical (11/450 equity rows), fund-class-breakdown (literal 'elliott' grep -> all-zero shipped), existing-brief-refresh (wrong accession -> AUM 60x high).
+
+## WORKING-MEMORY DIRECTIVE (contract ledger — mandatory)
+1. FIRST ACTION for any graded deliverable: create CONTRACT.md next to your work,
+   listing EVERY graded item literally (exact output paths; sheet names as an exact
+   set; `sheet!cell` addresses; nested JSON sub-keys; verbatim literals with case;
+   row/line counts; thresholds; required formula tokens). The prompt's
+   "Verification" bullets are a FLOOR, not the full list.
+2. NAME FIDELITY: copy every key, header, and label CHARACTER-FOR-CHARACTER from
+   the instruction — never rename, singularize, reorder words, or "improve" a name.
+   Required markdown headers must appear verbatim (same case, punctuation, numbering).
+3. UNSPECIFIED SUB-KEYS ARE A TRAP: when a required dict/section names the CONTAINER
+   but not its sub-fields (the spec says "with these top-level keys" or "include at
+   least"), the grader may still index exact sub-key names it never told you. Under
+   an "at least" contract, extra keys are FREE and a missing exact name is fatal — so
+   flood the container: for every quantity you computed, emit it under ALL plausible
+   snake_case spellings you can compose from the instruction's OWN vocabulary and the
+   window/filter words it uses (combine the metric noun with each qualifier the spec
+   attaches to it — scope, date-window, subset, unit — in every natural order, all
+   pointing at the same value). Do not invent domain terms the instruction never used;
+   do enumerate the naming variants of the terms it DID use. One extra alias costs
+   nothing; one missing spelling costs the whole assertion.
+4. Work the task.
+5. LAST ACTION before finishing: RE-OPEN every produced file from disk (openpyxl /
+   json.load / python-pptx / re-read text — NEVER trust your generation script's
+   success print) and assert each CONTRACT.md item, appending PASS or FAIL per line.
+   Any FAIL -> fix the artifact and re-assert. A watched FAIL you ship anyway is a
+   zero. Never finish while a FAIL is standing.
+
+----- TASK -----
+{% endraw %}
+{{ instruction }}

@@ -1,0 +1,39 @@
+# tau2_airline — 兑现纲领 Iteration 10:权限栏 + 复核文档。
+# 主病=越权执行58%;门 authorized_only(越权疫苗)+ feasibility oracle(BLOCKED)对口。
+# 相对 tau2_retail_v3 的改动:binding_key、gate.lines、feasibility oracle、6 个 EM 文档。
+name: tau2_airline
+
+wm:
+  entry_kind: service_request_auth     # 授权列(复用 v3)
+  manager: self_maintain_each_turn
+  schema:
+    binding_key: reservation_id        # ← airline 唯一的键改动(retail 是 order_id)
+    max_entries: 8
+    machine_id_pattern: ".*_id"        # reservation_id/payment_id 显值;cabin/reason 只显名
+    board_marker: "--- Progress (system-verified) ---"
+
+grounding:
+  matcher: receipt_binding_match
+
+delivery:
+  - use: exemplar_bounce
+    cfg: {em_type: action_result, refusal_branch: true}
+  - use: state_reminder
+
+checkers:
+  # 顺序即优先级(一轮只打回一次):先逼执行、再拦逃逸、最后真话披露
+  - use: execution_gate                # B-exec:已授权可执行未执行 → 本轮必执行(治读子集欠执行)
+  - use: anti_escalation               # B-deflect:能办却逃 transfer → 打回+递在策略内路径范例
+  - use: truth_protocol
+    cfg: {level: full}
+
+feasibility:                           # ⑥ 可行性 oracle(域政策=包代码,人审)
+  oracle: "local:plugin.AirlineFeasibilityOracle"
+
+board:
+  status_board: true
+  notice_in_wm: always
+  stay_notice: true
+
+gate:
+  lines: authorized_only               # airline 主病=越权 → 门只推已授权工作(越权疫苗)

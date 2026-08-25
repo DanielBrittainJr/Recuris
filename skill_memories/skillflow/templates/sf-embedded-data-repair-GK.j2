@@ -1,0 +1,169 @@
+{% raw %}# MACHINE -- Pre-Submit Verification (INVARIANT, runs before every "done")
+
+TRIGGER: this task writes a graded artifact (an embedded Excel workbook inside a .pptx). The #1 failure here is NOT wrong math -- it is shipping an artifact you never re-opened: your save script prints "done", but the graded cached value never actually landed in the file. Solve the task, then run the loop below and DO NOT declare done until it prints "ALL PASS".
+
+TECHNIQUE:
+1. ENUMERATE THE CONTRACT from the task text: which single cell/value must change, which sheets and OTHER embedded files must stay byte-identical, which formula cells must remain formulas.
+2. RE-OPEN THE PRODUCED FILE from disk -- never trust your save script's success print. The grader reads the embedded workbook with `openpyxl ... data_only=True`, i.e. it reads the CACHED value stored in the file, and it never opens Excel to recompute. So a value-graded cell must hold a real NUMBER under data_only=True -- not None, not a formula string.
+3. A WATCHED FAILURE IS A REAL FAILURE. If the check flags a cell as None / mismatch, FIX THE OUTPUT and re-run. Never rationalize "Excel will recompute it on open" and ship anyway -- that is exactly the failure mode that scores zero here.
+
+## FAMILY CARD -- embedded reciprocal-matrix repair (matched for this task family)
+
+TRIGGER -- a slide FINAL/approved line gives one "X to Y = rate"; you must set the direct (X->Y) rate and its reciprocal (Y->X) inside an embedded Excel matrix, keep formula cells as formulas, and leave every other cell and every other embedded workbook untouched.
+
+FIRST decide which HALF you are in -- read the matrix with `openpyxl load_workbook(..., data_only=False)` and look at the DIRECT cell (from-row x to-col):
+- WRITABLE-DIRECT half: the direct cell holds a plain number. Set it to `rate` with openpyxl. Its reciprocal is a `=ROUND(1/direct,4)` formula whose empty cache the grader accepts via its formula path. Easy.
+- FORMULA-CACHE half (this is exactly where weak attempts score zero): the DIRECT cell IS the formula `=ROUND(1/inverse,4)` and ships with an EMPTY `<v>` cache. Two facts you must know:
+  (a) openpyxl NEVER recomputes formulas, so if you only set the writable inverse and save, the direct formula cell still has NO cached `<v>`, and the grader's `data_only=True` read returns None -> zero. "Excel will recompute on open" is FALSE; the grader never opens Excel.
+  (b) openpyxl also CANNOT give a formula cell a cached value: assigning a number to it deletes the `<f>`. So you must edit the sheet XML directly.
+  FIX for this half: (1) set the writable INVERSE cell = round(1/rate, 4) (openpyxl is fine for that one), then (2) inject `<v>rate</v>` into the DIRECT formula cell's XML while KEEPING its `<f>`. Do this by surgery on the embedded sheet XML, not by rewriting the whole workbook (a full openpyxl rewrite drops other cells' caches and can disturb the archive embedding).
+
+`<v>`-INJECTION skeleton (edit ONLY the target sheet's XML inside the target embedding; copy every other zip member verbatim so other cells / other embeddings stay byte-identical):
+```python
+import zipfile, io, re
+def inject_v(pptx_in, pptx_out, embedding_name, sheet_path, cellref, value, keep_formula):
+    zp = zipfile.ZipFile(pptx_in); members = {n: zp.read(n) for n in zp.namelist()}
+    zx = zipfile.ZipFile(io.BytesIO(members[embedding_name])); xm = {n: zx.read(n) for n in zx.namelist()}
+    xml = xm[sheet_path].decode('utf-8')
+    m = re.search(r'<c r="%s"([^>]*)>(.*?)</c>' % re.escape(cellref), xml, re.S)  # formula/value cells have children
+    attrs = re.sub(r'\s+t="[^"]*"', '', m.group(1)); inner = m.group(2)
+    f = re.search(r'<f[^>]*>.*?</f>', inner, re.S)
+    new_inner = (f.group(0) if (keep_formula and f) else '') + '<v>%s</v>' % ('%.10g' % float(value))
+    xml = xml[:m.start()] + '<c r="%s"%s>%s</c>' % (cellref, attrs, new_inner) + xml[m.end():]
+    xm[sheet_path] = xml.encode('utf-8')
+    ob = io.BytesIO()
+    with zipfile.ZipFile(ob, 'w', zipfile.ZIP_DEFLATED) as zo:
+        for n in zx.namelist(): zo.writestr(n, xm[n])
+    members[embedding_name] = ob.getvalue()
+    with zipfile.ZipFile(pptx_out, 'w', zipfile.ZIP_DEFLATED) as zo:
+        for n in zp.namelist(): zo.writestr(n, members[n])
+```
+Resolve `sheet_path` (the target sheet's `xl/worksheets/sheetN.xml`) from `xl/workbook.xml` + `xl/_rels/workbook.xml.rels` by sheet name, or just find the sheet XML that contains your target cellref. Compute `value` yourself from the slide's FINAL line -- it is NOT given to you.
+
+
+## MANDATORY SELF-CHECK GATE (run before you finish -- do NOT declare done while it prints any PROBLEM)
+As your FINAL step, create this EXACT script as `/root/verify_embedded.py`, run `python3 /root/verify_embedded.py`, FIX every line it flags, and re-run until it prints "ALL PASS". The value it expects is computed from the slide's own FINAL/approved line (the same public source you must use); it is not handed to you here.
+```python
+import zipfile, io, re, csv, os, json
+from openpyxl import load_workbook
+RESULT="/root/results.pptx"; INPUT="/root/input.pptx"
+ALIAS="/root/label_aliases.csv"; LOCATOR="/root/live_matrix_locator.json"
+PREFER=('final','approved','live','current'); IGNORE=('archive','archived','superseded','draft','obsolete')
+UP=re.compile(r'([A-Za-z0-9]+)\s+to\s+([A-Za-z0-9]+)\s*=\s*([0-9]+(?:\.[0-9]+)?)',re.I)
+def norm(t): return ''.join(c.lower() for c in str(t) if c.isalnum())
+def isf(v): return isinstance(v,str) and v.startswith('=')
+def tm(v,t): return v is not None and norm(t) in norm(v)
+def col(i):
+    s=''
+    while i>0: i,r=divmod(i-1,26); s=chr(65+r)+s
+    return s
+def slide_target(p):
+    ch=[]; z=zipfile.ZipFile(p)
+    for n in z.namelist():
+        if re.match(r'ppt/slides/slide\d+\.xml$',n):
+            t=z.read(n).decode('utf-8','ignore')
+            for m in re.findall(r'<a:t>(.*?)</a:t>',t,re.S):
+                for pt in re.split(r'\|\||\n',m):
+                    if pt.strip(): ch.append(pt.strip())
+    best=None; bs=None
+    for i,c in enumerate(ch):
+        m=UP.search(c)
+        if not m: continue
+        lo=c.lower(); s=0
+        if any(k in lo for k in PREFER): s+=5
+        if any(k in lo for k in IGNORE): s-=5
+        key=(s,-i)
+        if bs is None or key>bs: best=(m.group(1),m.group(2),float(m.group(3))); bs=key
+    return best
+def resolve(a,b):
+    if not os.path.exists(ALIAS): return a,b
+    mp={}
+    for r in csv.DictReader(open(ALIAS,newline='',encoding='utf-8')): mp[norm(r['note_token'])]=r['workbook_label']
+    return mp.get(norm(a),a), mp.get(norm(b),b)
+def mtitle():
+    if os.path.exists(LOCATOR):
+        try: return json.load(open(LOCATOR,encoding='utf-8')).get('matrix_title')
+        except Exception: return None
+    return None
+def embs(p):
+    z=zipfile.ZipFile(p); return [n for n in z.namelist() if n.startswith('ppt/embeddings/') and n.endswith('.xlsx')]
+def wbk(p,name,do): return load_workbook(io.BytesIO(zipfile.ZipFile(p).read(name)),data_only=do)
+def cands(ws,ft,tt):
+    out=[]
+    for ar in range(1,ws.max_row+1):
+        for ac in range(1,ws.max_column+1):
+            rl={}; r=ar+1
+            while r<=ws.max_row and ws.cell(r,ac).value not in (None,''): rl[r]=ws.cell(r,ac).value; r+=1
+            cl={}; c=ac+1
+            while c<=ws.max_column and ws.cell(ar,c).value not in (None,''): cl[c]=ws.cell(ar,c).value; c+=1
+            fr=[r for r,v in rl.items() if tm(v,ft)]; tr=[r for r,v in rl.items() if tm(v,tt)]
+            fc=[c for c,v in cl.items() if tm(v,ft)]; tc=[c for c,v in cl.items() if tm(v,tt)]
+            if fr and tr and fc and tc:
+                d=(fr[0],tc[0]); iv=(tr[0],fc[0])
+                if ws.cell(*d).value is not None and ws.cell(*iv).value is not None:
+                    ti=ws.cell(ar-1,ac).value if ar-1>=1 else None
+                    out.append((d,iv,ti))
+    return out
+def locate(p,ft,tt,mt):
+    best=None; bs=None
+    for e in embs(p):
+        w=wbk(p,e,False)
+        for ws in w.worksheets:
+            for (d,iv,ti) in cands(ws,ft,tt):
+                tl=(str(ti) if ti is not None else '').lower()
+                if mt: s=100 if norm(ti)==norm(mt) else -100
+                else:
+                    s=0
+                    if any(k in tl for k in PREFER): s+=5
+                    if any(k in tl for k in IGNORE): s-=5
+                if bs is None or s>bs: best=(e,ws.title,d,iv); bs=s
+    return best
+probs=[]
+tgt=slide_target(RESULT)
+if not tgt: probs.append("no FINAL/approved rate line found on the slide")
+else:
+    ft,tt,rate=tgt; ft,tt=resolve(ft,tt)
+    loc=locate(RESULT,ft,tt,mtitle())
+    if not loc: probs.append(f"could not locate the {ft}->{tt} matrix in any embedding")
+    else:
+        e,sh,d,iv=loc
+        wd=wbk(RESULT,e,True); ws=wd[sh]
+        D=ws.cell(*d).value; I=ws.cell(*iv).value
+        dref=col(d[1])+str(d[0]); iref=col(iv[1])+str(iv[0])
+        if D is None: probs.append(f"target DIRECT cell {sh}!{dref} reads None under data_only=True -- cached value MISSING; the grader will read None here")
+        elif not isinstance(D,(int,float)): probs.append(f"{sh}!{dref} is not a number: {D!r}")
+        elif abs(D-rate)>1e-4: probs.append(f"{sh}!{dref}={D} != slide FINAL value {rate}")
+        if isinstance(I,(int,float)):
+            if isinstance(D,(int,float)) and abs(D*I-1)>2e-3: probs.append(f"inverse {sh}!{iref}={I} is not the reciprocal of {D}")
+        else:
+            wf=wbk(RESULT,e,False); inv=wf[sh].cell(*iv).value
+            if not (isf(inv) and re.search(r'(ROUND\()?1/'+dref+r'(,\d+)?\)?',str(inv).replace(' ','').replace('$','').upper())):
+                probs.append(f"inverse {sh}!{iref} is neither a cached number nor a 1/{dref} formula")
+        inf=wbk(INPUT,e,False); ouf=wbk(RESULT,e,False); ins={}; ous={}
+        for s in inf.sheetnames:
+            iw=inf[s]; ow=ouf[s]
+            for r in range(1,iw.max_row+1):
+                for c in range(1,iw.max_column+1):
+                    if isf(iw.cell(r,c).value): ins[(s,r,c)]=str(iw.cell(r,c).value).replace(' ','').replace('$','').upper()
+                    if isf(ow.cell(r,c).value): ous[(s,r,c)]=str(ow.cell(r,c).value).replace(' ','').replace('$','').upper()
+        if ins!=ous: probs.append("some input formula cells were changed or dropped (every formula must stay a formula)")
+        ind=wbk(INPUT,e,True); oud=wbk(RESULT,e,True)
+        for s in ind.sheetnames:
+            iw=ind[s]; ow=oud[s]
+            for r in range(1,max(iw.max_row,ow.max_row)+1):
+                for c in range(1,max(iw.max_column,ow.max_column)+1):
+                    if s==sh and (r,c) in (d,iv): continue
+                    a=iw.cell(r,c).value; b=ow.cell(r,c).value
+                    if isinstance(a,(int,float)) and isinstance(b,(int,float)):
+                        if abs(a-b)>=1e-6: probs.append(f"unrelated cell {s}!{col(c)}{r} changed {a}->{b}")
+                    elif (str(a).strip() if a is not None else None)!=(str(b).strip() if b is not None else None):
+                        probs.append(f"unrelated cell {s}!{col(c)}{r} changed {a!r}->{b!r}")
+        for o in embs(RESULT):
+            if o!=e and zipfile.ZipFile(INPUT).read(o)!=zipfile.ZipFile(RESULT).read(o):
+                probs.append(f"other embedding {os.path.basename(o)} changed (it must stay byte-identical)")
+probs=list(dict.fromkeys(probs))
+print("SELF-CHECK:", "ALL PASS" if not probs else str(len(probs))+" PROBLEMS:")
+for p in probs: print("  FIX:", p)
+```
+{% endraw %}
+{{ instruction }}

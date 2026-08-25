@@ -1,0 +1,17 @@
+# MACHINE — Pre-Submit Verification (INVARIANT, runs before every "done")
+
+TRIGGER: Every task that writes a graded artifact (.xlsx/.json/.md/.docx/.pptx). No exceptions. The #1 cause of failure here is NOT wrong math — it is shipping a correct answer in the wrong artifact shape, or stopping before checking. Solve, then run this loop.
+
+TECHNIQUE:
+1. ENUMERATE THE CONTRACT. Re-read the acceptance criteria and list every graded item literally: named cells as `sheet!cell`; JSON keys INCLUDING nested sub-keys; verbatim literal phrases (case-sensitive); file-path form (basename or full path?); row/line counts; required formula tokens; size bounds. Treat the prompt's "Verification"/"the grader checks" bullets as a floor, not a hint.
+2. RE-OPEN THE PRODUCED FILE. Never trust your generation script's success print. Load the file back from disk and assert each enumerated item against the REOPENED file:
+   - Excel: A1 header populated on EVERY sheet (not just Summary) — a blank detail-sheet A1 can `SystemExit`-crash the whole suite; `wb.sheetnames == exact set AND order` (no `Name1/Name2` duplicates); value-graded cells hold a NUMBER, not a formula-string or None — if formulas are required, confirm a cached `<v>` is present; named-range COUNT and each TARGET address; numeric dtype for anything the grader adds/compares (`v+1` on a string throws).
+   - JSON/MD: every nested sub-key present (list-of-objects vs list-of-strings matters); literal phrases present CASE-SENSITIVE and word-for-word (paraphrase fails grep); basename in filename fields; required `Label:` at line-START as plain text (markdown `**Label:**` breaks `^\s*Label:`); every graded number as an unbroken `{:,.2f}` token with the sign adjacent to the digits (no `$` or space between `-` and the first digit); non-empty-line count inside the stated bound.
+   - PPTX: re-open the zip and read the XML — font size/name(BOTH `<a:ea>` and `<a:latin>`)/bold/italic on each run's `rPr` (paragraph-level defaults leave run `sz`=0); shape width >= 0.9 * the FILE's actual slide width; real `<a:buAutoNum>` for auto-numbered bullets.
+3. THRESHOLD BEATS YOUR COUNT. A stated ">=85 named ranges" is binding even if your example list shows 78. Never write "meets requirement: True (note: only 78)."
+4. A WATCHED FAILURE IS A REAL FAILURE. If any self-check flags a mismatch, FIX THE OUTPUT. Never re-label it a "bad check" or "bad verify script" and ship anyway.
+5. IMPLAUSIBILITY GATE. All-zero/empty results, an equity fund with 11 stock holdings, a 60x AUM, a value outside its physical range — treat as red flags and re-derive before submitting.
+
+SELF-CHECK (say YES to all before "done"): I re-opened the file from disk (not read my script's log). Every enumerated cell/key/phrase/count asserted against the reopened file. Every value-graded cell is a number, not a formula-string. Sheetnames exact. No self-check I watched fail was rationalized away. No result trips the implausibility gate.
+
+SOURCE: 02_orchestra_archive_refresh_model (dismissed own failing verify as "bad check"), 03_university_faculty_model ("All verification checks pass" while cells held formulas), peregrine_rebate_template_update / atlas_refund_reserve_template_merge / cedar_accrual_rollforward (blank detail A1 → SystemExit), wildlife-field-guide-caption-cleanup (declared success without inspecting XML), harbor_syncpack_28v56 / harbor_reagentkit_bulk (number token broken by `$`), fund-snapshot-canonical (11-of-450 stock count not sanity-checked). SkillFlow synthesis §3.3.

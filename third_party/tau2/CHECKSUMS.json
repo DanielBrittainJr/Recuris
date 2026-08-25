@@ -1,0 +1,29 @@
+{
+  "comment": "Content digests of the tau2-Bench payload these results were produced against. Verify with scripts/verify_checksums.py; text files are LF-normalised before hashing.",
+  "upstream": "https://github.com/sierra-research/tau2-bench",
+  "harness_commit": "8ebb749",
+  "data_tag": "v1.0.1",
+  "data_commit": "fc0055dc4e0a316c3f83133267fbd6faaa770992",
+  "trees": {
+    "data/tau2/domains/retail": {
+      "sha256": "3f28c1553d0abd7e74b9a784e1e160e1b4b894efe0eaa8b492f966dc791e9449",
+      "files": 9,
+      "bytes": 34643388
+    },
+    "data/tau2/domains/airline": {
+      "sha256": "a5e84e6d2f3bb2c7e4d0a186621e293d7be62c99450756762b3091970990c6b5",
+      "files": 6,
+      "bytes": 9825437
+    },
+    "data/tau2/domains/telecom": {
+      "sha256": "86b3dd8d5a502c9e6afe8142cce94e4e75778d11f4e6ddf7ab5a22f5b1c3665b",
+      "files": 23,
+      "bytes": 92732756
+    },
+    "data/tau2/domains/banking_knowledge": {
+      "sha256": "76589e8b89a2e7c736f4245c456c86b13c8cdb4b4d5c7d28532ac573913e7746",
+      "files": 815,
+      "bytes": 6081833
+    }
+  }
+}

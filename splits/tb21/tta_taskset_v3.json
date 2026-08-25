@@ -1,0 +1,720 @@
+{
+ "name": "tb21_tta_v3_server",
+ "preregistered": "2026-08-19",
+ "image_snapshot": "alexgshaw/*:20251031 (89 images preloaded from the shared cache)",
+ "selection_rule": "Pre-registered TB2.1 task set for the server-side TTA campaign.\n\nBuilt from THIS host's own baseline (tb21_initial89_20260813, terminus-2 +\ndoubao-seed-2-0-pro-260215), not the local machine's. The two hosts run\ndifferent task-image snapshots (alexgshaw:20251031 here, xiangyangli:20260204\nlocally) and score differently (34.5% vs 40.0%), so strata derived from one are\nnot valid for the other.\n\nStrata:\n  A  baseline failed, >=1 verifier test passed  -> localised defect\n  B  baseline failed, 0 tests passed            -> likely capability wall\n  U  baseline failed, no verifier record        -> unclassified\n  P  baseline PASSED                            -> regression check",
+ "baseline": {
+  "job": "tb21_initial89_20260813",
+  "model": "openai/doubao-seed-2-0-pro-260215",
+  "agent": "terminus-2",
+  "scored": 87,
+  "passed": 30
+ },
+ "tasks": [
+  {
+   "task": "adaptive-rejection-sampler",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "bn-fit-modify",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "break-filter-js-from-html",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 1256
+  },
+  {
+   "task": "build-cython-ext",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 9,
+   "tests_total": 11,
+   "baseline_sec": 893
+  },
+  {
+   "task": "build-pmars",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "build-pov-ray",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 3,
+   "baseline_sec": 12121
+  },
+  {
+   "task": "caffe-cifar-10",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 6,
+   "baseline_sec": 3753
+  },
+  {
+   "task": "cancel-async-tasks",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "chess-best-move",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 967
+  },
+  {
+   "task": "circuit-fibsqrt",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 1847
+  },
+  {
+   "task": "cobol-modernization",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 277
+  },
+  {
+   "task": "code-from-image",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 2,
+   "tests_total": 2,
+   "baseline_sec": 207
+  },
+  {
+   "task": "compile-compcert",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 3,
+   "baseline_sec": 2520
+  },
+  {
+   "task": "configure-git-webserver",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "constraints-scheduling",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 300
+  },
+  {
+   "task": "count-dataset-tokens",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 602
+  },
+  {
+   "task": "crack-7z-hash",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 2,
+   "tests_total": 2,
+   "baseline_sec": 371
+  },
+  {
+   "task": "custom-memory-heap-crash",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 6,
+   "tests_total": 6,
+   "baseline_sec": 532
+  },
+  {
+   "task": "db-wal-recovery",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 5,
+   "tests_total": 7,
+   "baseline_sec": 555
+  },
+  {
+   "task": "distribution-search",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 4,
+   "tests_total": 4,
+   "baseline_sec": 927
+  },
+  {
+   "task": "dna-assembly",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 379
+  },
+  {
+   "task": "dna-insert",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "extract-elf",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 227
+  },
+  {
+   "task": "extract-moves-from-video",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 1121
+  },
+  {
+   "task": "feal-differential-cryptanalysis",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 1931
+  },
+  {
+   "task": "feal-linear-cryptanalysis",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 1893
+  },
+  {
+   "task": "filter-js-from-html",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 595
+  },
+  {
+   "task": "financial-document-processor",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 6,
+   "tests_total": 7,
+   "baseline_sec": 467
+  },
+  {
+   "task": "fix-code-vulnerability",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 6,
+   "tests_total": 6,
+   "baseline_sec": 214
+  },
+  {
+   "task": "fix-git",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 2,
+   "tests_total": 2,
+   "baseline_sec": 184
+  },
+  {
+   "task": "fix-ocaml-gc",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 1795
+  },
+  {
+   "task": "gcode-to-text",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 671
+  },
+  {
+   "task": "git-leak-recovery",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "git-multibranch",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "gpt2-codegolf",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 262
+  },
+  {
+   "task": "headless-terminal",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 7,
+   "tests_total": 7,
+   "baseline_sec": 351
+  },
+  {
+   "task": "hf-model-inference",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 4,
+   "tests_total": 4,
+   "baseline_sec": 470
+  },
+  {
+   "task": "install-windows-3.11",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 3,
+   "tests_total": 4,
+   "baseline_sec": 757
+  },
+  {
+   "task": "kv-store-grpc",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 7,
+   "tests_total": 7,
+   "baseline_sec": 209
+  },
+  {
+   "task": "large-scale-text-editing",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 5,
+   "tests_total": 5,
+   "baseline_sec": 264
+  },
+  {
+   "task": "largest-eigenval",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 419
+  },
+  {
+   "task": "llm-inference-batching-scheduler",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 5,
+   "tests_total": 6,
+   "baseline_sec": 1884
+  },
+  {
+   "task": "log-summary-date-ranges",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 2,
+   "tests_total": 2,
+   "baseline_sec": 175
+  },
+  {
+   "task": "mailman",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 3,
+   "baseline_sec": 525
+  },
+  {
+   "task": "make-doom-for-mips",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 3,
+   "baseline_sec": 633
+  },
+  {
+   "task": "make-mips-interpreter",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 3,
+   "baseline_sec": 1503
+  },
+  {
+   "task": "mcmc-sampling-stan",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 6,
+   "baseline_sec": 1999
+  },
+  {
+   "task": "merge-diff-arc-agi-task",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "model-extraction-relu-logits",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 285
+  },
+  {
+   "task": "modernize-scientific-stack",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 2,
+   "tests_total": 2,
+   "baseline_sec": 211
+  },
+  {
+   "task": "mteb-leaderboard",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 328
+  },
+  {
+   "task": "multi-source-data-merger",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 299
+  },
+  {
+   "task": "nginx-request-logging",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 8,
+   "tests_total": 8,
+   "baseline_sec": 192
+  },
+  {
+   "task": "openssl-selfsigned-cert",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 6,
+   "tests_total": 6,
+   "baseline_sec": 209
+  },
+  {
+   "task": "overfull-hbox",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 3,
+   "tests_total": 4,
+   "baseline_sec": 493
+  },
+  {
+   "task": "password-recovery",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "path-tracing",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "path-tracing-reverse",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 3,
+   "baseline_sec": 507
+  },
+  {
+   "task": "polyglot-c-py",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 385
+  },
+  {
+   "task": "polyglot-rust-c",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 1118
+  },
+  {
+   "task": "portfolio-optimization",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 4,
+   "tests_total": 4,
+   "baseline_sec": 450
+  },
+  {
+   "task": "protein-assembly",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 333
+  },
+  {
+   "task": "prove-plus-comm",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "pypi-server",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 194
+  },
+  {
+   "task": "pytorch-model-cli",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 3,
+   "tests_total": 6,
+   "baseline_sec": 1561
+  },
+  {
+   "task": "pytorch-model-recovery",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 5,
+   "tests_total": 5,
+   "baseline_sec": 992
+  },
+  {
+   "task": "qemu-alpine-ssh",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 458
+  },
+  {
+   "task": "qemu-startup",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 439
+  },
+  {
+   "task": "query-optimize",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 5,
+   "tests_total": 6,
+   "baseline_sec": 1329
+  },
+  {
+   "task": "raman-fitting",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 3,
+   "baseline_sec": 505
+  },
+  {
+   "task": "regex-chess",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 4,
+   "baseline_sec": 328
+  },
+  {
+   "task": "regex-log",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 276
+  },
+  {
+   "task": "reshard-c4-data",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 1,
+   "tests_total": 1,
+   "baseline_sec": 379
+  },
+  {
+   "task": "rstan-to-pystan",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 6,
+   "baseline_sec": 1529
+  },
+  {
+   "task": "sam-cell-seg",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 9,
+   "tests_total": 9,
+   "baseline_sec": 262
+  },
+  {
+   "task": "sanitize-git-repo",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 3,
+   "baseline_sec": 152
+  },
+  {
+   "task": "schemelike-metacircular-eval",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 2472
+  },
+  {
+   "task": "sparql-university",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "sqlite-db-truncate",
+   "stratum": "B",
+   "baseline_reward": 0.0,
+   "tests_passed": 0,
+   "tests_total": 1,
+   "baseline_sec": 265
+  },
+  {
+   "task": "sqlite-with-gcov",
+   "stratum": "P",
+   "baseline_reward": 1.0,
+   "tests_passed": 3,
+   "tests_total": 3,
+   "baseline_sec": 744
+  },
+  {
+   "task": "torch-tensor-parallelism",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "train-fasttext",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 1,
+   "tests_total": 2,
+   "baseline_sec": 3681
+  },
+  {
+   "task": "tune-mjcf",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 3,
+   "tests_total": 4,
+   "baseline_sec": 999
+  },
+  {
+   "task": "video-processing",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 3,
+   "tests_total": 5,
+   "baseline_sec": 268
+  },
+  {
+   "task": "vulnerable-secret",
+   "stratum": "U",
+   "baseline_reward": 0.0,
+   "tests_passed": null,
+   "tests_total": null,
+   "baseline_sec": null
+  },
+  {
+   "task": "winning-avg-corewars",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 3,
+   "baseline_sec": 3635
+  },
+  {
+   "task": "write-compressor",
+   "stratum": "A",
+   "baseline_reward": 0.0,
+   "tests_passed": 2,
+   "tests_total": 3,
+   "baseline_sec": 838
+  }
+ ],
+ "n": 87,
+ "n_A": 25,
+ "n_B": 17,
+ "n_U": 15,
+ "n_P": 30,
+ "unscored_on_disk": [
+  "mteb-retrieve",
+  "torch-pipeline-parallelism"
+ ]
+}

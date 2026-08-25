@@ -1,0 +1,101 @@
+name: CI
+
+# Everything here runs with no network access to a model, no API key, and no
+# benchmark checkout. That is deliberate: a CI job that needs credentials is a
+# CI job that stops running, and then the guards it was protecting stop being
+# guards.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,metaagent]"
+
+      - name: Lint
+        run: python -m ruff check src scripts
+
+      - name: No Chinese in shipped code
+        run: python scripts/check_no_cjk.py
+
+      - name: No credentials, no internal infrastructure
+        run: python scripts/scan_secrets.py
+
+      - name: Integrity anchors are current
+        # Fails if a protected Skill Memory package changed without a
+        # deliberate re-anchor. Those packages are the artefacts the reported
+        # numbers were measured on.
+        run: python scripts/reanchor_integrity.py --check
+
+      - name: No withheld names, and no former project name
+        # Two things. The release covers three benchmark lines, so a reference
+        # to one it does not ship is either dead code or a leak of internal
+        # structure. And the framework is called Recuris: source or docs that
+        # still say otherwise confuse a reader for no gain.
+        #
+        # skill_memories/ is deliberately outside this check. Those packages
+        # are shipped byte-for-byte as they were evaluated, so their internal
+        # names stay historical; skill_memories/README.md says so.
+        run: |
+          if git grep -rniE '\b(officeqa|lhtb|gpqa|leetcode|skiller)\b' \
+               -- . ':(exclude)skill_memories/*' \
+                    ':(exclude).github/workflows/ci.yml'; then
+            echo "found a withheld capability name, or the former project name"
+            exit 1
+          fi
+
+      - name: Everything imports, and every config validates
+        run: |
+          python -c "import recuris, recuris.metaagent.driver, recuris.tta.driver"
+          python -c "
+          from recuris.config import known_configs, load
+          names = known_configs()
+          assert names, 'configs/ is empty'
+          for name in names:
+              load(name)
+          print(f'{len(names)} configs validate')
+          "
+
+  fresh-clone:
+    # The check job passing in a working tree proves less than it looks like:
+    # a file that was never committed still resolves locally. This installs
+    # from a clean checkout and exercises the paths that need no benchmark.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install .
+      - run: recuris --help
+      - run: python -c "import recuris, recuris.metaagent.driver, recuris.tta.driver"
+      - name: check-data reports what is missing
+        # Exits non-zero because no benchmark is set up, which is the point:
+        # it should name each one and the command that fixes it.
+        run: recuris check-data || true

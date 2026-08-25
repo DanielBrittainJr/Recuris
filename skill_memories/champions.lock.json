@@ -1,0 +1,343 @@
+{
+  "schema_version": 1,
+  "created_at_utc": "2026-08-25T13:23:29.192280+00:00",
+  "packages": {
+    "skill_memories/tau2_retail": {
+      "files": {
+        "em/action_result/_generic.md": {
+          "sha256": "b4e4e3338f7176117c7fc4dbd4791e413ce09c3c25f0a92723669107cfe1e6f3",
+          "bytes": 318
+        },
+        "em/action_result/cancel_pending_order.md": {
+          "sha256": "d8db343a79f8c28dcc15c604f53a94ec211c15f9d6978c9f7538bc3e8cc94e25",
+          "bytes": 1173
+        },
+        "em/action_result/exchange_delivered_order_items.md": {
+          "sha256": "76f41ba44ac812d8069bd513d745a9dd1e8934a64313aeb01b104794403e8141",
+          "bytes": 1746
+        },
+        "em/action_result/modify_pending_order_address.md": {
+          "sha256": "0f54ad4d1c43173ac23111d19763014ce5ba3be0da13e757dde177cc7f76bb96",
+          "bytes": 1371
+        },
+        "em/action_result/modify_pending_order_items.md": {
+          "sha256": "268cc20901a7c8b5895fae91b8ca55cfd8d127fdadc77068d16a11e5e6862104",
+          "bytes": 1718
+        },
+        "em/action_result/modify_pending_order_payment.md": {
+          "sha256": "4fa24825293ba5f7750d38c7e384c3e823e29986932b45769940795efc99e458",
+          "bytes": 1421
+        },
+        "em/action_result/modify_user_address.md": {
+          "sha256": "3045bb1d4023926a602540e3d0edcdb0be3cc1f5db21db491117311695c207fa",
+          "bytes": 1419
+        },
+        "em/action_result/return_delivered_order_items.md": {
+          "sha256": "9503e43f3f5c700b00e597df7d638d43c530d16082b8eb8f1d017ecec30a5b30",
+          "bytes": 1998
+        },
+        "em/procedure/authorized_execute_check.md": {
+          "sha256": "17a75282b4b6dc31603d81e6f1d2307e6ac7ec2b6dc86b1f5f370feca98a878e",
+          "bytes": 540
+        },
+        "em/procedure/confirm_before_execute.md": {
+          "sha256": "3f9e9ea552132e943c2fcea92795e6f841f8d2b9bf8103ad5547f19b80607fe8",
+          "bytes": 496
+        },
+        "manifest.yaml": {
+          "sha256": "73b4531a61bc2ac1819c2477603decd34320de7e683fae0483990d29170564eb",
+          "bytes": 1152
+        }
+      },
+      "file_count": 11,
+      "bytes": 13352
+    },
+    "skill_memories/tau2_airline": {
+      "files": {
+        "em/action_result/_generic.md": {
+          "sha256": "c74573d834e931b361b1352d3b3e3d33ce9ef6e6762301422c89d00d14e7e4c2",
+          "bytes": 385
+        },
+        "em/action_result/book_reservation.md": {
+          "sha256": "15cf75c76af54e6f812486dcba604729967de3bfda7e1ce2cf6ca083c20dad10",
+          "bytes": 1664
+        },
+        "em/action_result/cancel_reservation.md": {
+          "sha256": "a6c754756dbee81ffe114a1052727d39e5dc9c1c065e3ae44ecc8ff7e1b04697",
+          "bytes": 1580
+        },
+        "em/action_result/send_certificate.md": {
+          "sha256": "c9d736178dfc4c3fbbd178aae8af0a028efd16d634ab69ec0288cd51aea0c819",
+          "bytes": 1268
+        },
+        "em/action_result/update_reservation_baggages.md": {
+          "sha256": "fa96bfb69c206bf7ab312af0b155babeeee51347f78b2a8d41716e0c5b81f1e4",
+          "bytes": 1219
+        },
+        "em/action_result/update_reservation_flights.md": {
+          "sha256": "786171073c7bf600083656883ec51dcffedec939b35ad6b0e7374dddfe6bc7d5",
+          "bytes": 1585
+        },
+        "em/action_result/update_reservation_passengers.md": {
+          "sha256": "55ef535079838e471e003933dc3f9adfc59f2ff40f47314bba61085d4e0dea1e",
+          "bytes": 1115
+        },
+        "em/procedure/dont_escalate_basic_economy.md": {
+          "sha256": "33904b0df5a62f6e516f7277b9dd3b58e80fded25cdb977140d09699378eab2d",
+          "bytes": 613
+        },
+        "em/procedure/flight_duration_source.md": {
+          "sha256": "f4dbc6a54f963ad4f7e47ca7bd2231cfbdf9811c31457a254648c21a59492a5f",
+          "bytes": 658
+        },
+        "em/procedure/route_change_is_cancel_rebook.md": {
+          "sha256": "0fc1b0722bd8f34cbab7b43b799c5750716a99220959f4cb321aa4e7a9431d04",
+          "bytes": 580
+        },
+        "manifest.yaml": {
+          "sha256": "04c2f2ff46bbd0ed029040bc872c1f534421867aa935785c4c2f82503fddaa9e",
+          "bytes": 1537
+        },
+        "plugin.py": {
+          "sha256": "4e8df7f19a228d75d4f350a6f9c8c32043d2cdcaacdc34aaee718958235c5f15",
+          "bytes": 7733
+        }
+      },
+      "file_count": 12,
+      "bytes": 19937
+    },
+    "skill_memories/skillflow": {
+      "files": {
+        "cards/C1-excel-a1-header-block.md": {
+          "sha256": "1dc4813d2f05b2b82c4ba6ed59a26f8a4faaad6dc4e6c6dfcc664a88f46d47c3",
+          "bytes": 2062
+        },
+        "cards/C10-prose-number-token.md": {
+          "sha256": "9c007200c799db6d05724e34a2cc6127f69fce356657f78b82ba525eeec21763",
+          "bytes": 1368
+        },
+        "cards/C11-labeled-line.md": {
+          "sha256": "7a636fa585b7349bd96e5c3e3e46c5b3845825e04e50837e0a0334797bc86c8c",
+          "bytes": 1319
+        },
+        "cards/C12-report-specificity.md": {
+          "sha256": "c313fcd0f807791a1cade6fb05ca0c1bd39b4ae619c9abd8039e88ba0777e753",
+          "bytes": 1381
+        },
+        "cards/C13-output-size-bound.md": {
+          "sha256": "9ff5a50a26f1a43d19472e1b6597fdc435a176cb382a652776f94fc5b0e00db3",
+          "bytes": 1285
+        },
+        "cards/C14-pptx-xml-formatting.md": {
+          "sha256": "16fd75115922a9c2dc03c79b0354ce0bd757b3785c4c5b3aefa117f0288a6a2f",
+          "bytes": 2278
+        },
+        "cards/C15-seed-equation.md": {
+          "sha256": "875bc0500eae22c3dda7440546d7cb30eab95f1683cea1c054da2b67c6060e49",
+          "bytes": 1512
+        },
+        "cards/C16-formula-column-semantics.md": {
+          "sha256": "875ea2593f0707145d8327d196eed185f357c2b5d2789c79eb0a8e4483b2500c",
+          "bytes": 1463
+        },
+        "cards/C17-unit-harmonization.md": {
+          "sha256": "5d2da8fca0648261561851254e1a6287f09383e153449879439a2b86da47cce6",
+          "bytes": 1709
+        },
+        "cards/C18-13f-stock-like.md": {
+          "sha256": "6d62d26e2d939ab5202eec3e9f25de257081cc08b6788d0e6fa2444a68f6aef7",
+          "bytes": 1735
+        },
+        "cards/C19-econ-pipeline-validation.md": {
+          "sha256": "f409a7865860efe86bedebadd64b9f644bea0ff69e40bd2acdbe8389a993a432",
+          "bytes": 1726
+        },
+        "cards/C2-excel-exact-cell-map.md": {
+          "sha256": "82a399b4d384824fb7e293e4e42e94454e835726a3a45252b58a42173dc70093",
+          "bytes": 1591
+        },
+        "cards/C20-ocr-field-extraction.md": {
+          "sha256": "be2a02e0be31c6209439db633b12e5d013ecc6ee63d98fa39e19596ed648f36d",
+          "bytes": 1770
+        },
+        "cards/C21-compute-in-code.md": {
+          "sha256": "ab326ad2f82266d563cfe0e54dda8a9aca9a80d788caaae72bb06918c9372671",
+          "bytes": 1436
+        },
+        "cards/C22-age-full-year.md": {
+          "sha256": "c8b64feab2f8876f644d198a6bced054ecfb892b0eb95480f7f91b4883235e15",
+          "bytes": 1283
+        },
+        "cards/C3-excel-formula-cached-value.md": {
+          "sha256": "a3e29f485b3147706c22b631892f8189040a4b99cc32b331850bf006166ca8b2",
+          "bytes": 1813
+        },
+        "cards/C4-excel-pivot-xml.md": {
+          "sha256": "c624e5ecfcc424d8537b869954907934ffef620222441e9d0f1cf6f7e866c722",
+          "bytes": 1529
+        },
+        "cards/C5-excel-sheet-hygiene.md": {
+          "sha256": "6e740602780213cf006f205ab335538831bfa5b80bcfcce2f058ff2b1b16abde",
+          "bytes": 1409
+        },
+        "cards/C6-numeric-precision.md": {
+          "sha256": "c7330b09f986a895e936fd2c2631d452fb53ff2b7f789fe42c0a36750a47c114",
+          "bytes": 1208
+        },
+        "cards/C7-copy-fidelity.md": {
+          "sha256": "e7b461cbf9d026720bbcadd83bdb31566f152a855d54c7563bbb268af46365d2",
+          "bytes": 1251
+        },
+        "cards/C8-json-nested-schema.md": {
+          "sha256": "fcefafa96329e0a564e45e210e03483a7c1a46c46d5d796a2670f4d0e25dcccd",
+          "bytes": 1529
+        },
+        "cards/C9-literal-verbatim.md": {
+          "sha256": "68a1677a3cf81d7702a2e13d49f9a58af57224357180711f9f8b78bb5053254a",
+          "bytes": 1567
+        },
+        "MACHINE.md": {
+          "sha256": "51f6e361381b6990dc79868ba88ea0e8f040f56a33195176fcd4c5f5928067cf",
+          "bytes": 3540
+        },
+        "manifest.yaml": {
+          "sha256": "b7668a6e65d19ff536e95818d1d31d69370bdf05bfed83228e73a4b427a184bc",
+          "bytes": 2597
+        },
+        "README.md": {
+          "sha256": "3194db6b738dab3fac5c3cee0498494fe32eae5118ef5dba414083990148c3fd",
+          "bytes": 5565
+        },
+        "ROUTER.md": {
+          "sha256": "a8ef78254f62366ec883421745cdf6e8bbfac8bdfb7555187228a2b3acc8699b",
+          "bytes": 2264
+        },
+        "templates/MAPPING.md": {
+          "sha256": "379db7aa43a278062491303e2341dbf17f5d9a7b324bbb448e3475ca30f6a1d1",
+          "bytes": 3051
+        },
+        "templates/ROUTING.map": {
+          "sha256": "199ce0db8869a61c2fd3600f0c6b86ed0e0549e38ff5802f84b592307a2bb0fe",
+          "bytes": 1113
+        },
+        "templates/sf-compensation-scenario-modeling.j2": {
+          "sha256": "14ad79eafbc8e24577c9837d1eb59c526d632c2a9d6b64c4cc5c9f5db4abe8e5",
+          "bytes": 9563
+        },
+        "templates/sf-cross-format-data-reconciliation.j2": {
+          "sha256": "a9e94eb8375f0c68e4bddb23f3b21b277fef959ad4e7c76806ad6fe8859f7176",
+          "bytes": 5605
+        },
+        "templates/sf-distribution-center-auditing.j2": {
+          "sha256": "f04cf0ebb29a89a7db9d5543e3e92a131d76431fdef181a6e56ab84cf9ff6513",
+          "bytes": 8993
+        },
+        "templates/sf-dmaic-quality-analysis.j2": {
+          "sha256": "a560900d62f519fe93f400e38be9567e7a757de323ae5e8fdb7b2b347d7814b2",
+          "bytes": 8289
+        },
+        "templates/sf-document-fraud-detection.j2": {
+          "sha256": "a9e94eb8375f0c68e4bddb23f3b21b277fef959ad4e7c76806ad6fe8859f7176",
+          "bytes": 5605
+        },
+        "templates/sf-embedded-data-repair-GK.j2": {
+          "sha256": "fb5f716bf35862bb12aa1c08ccfa3464624d5a744d9fc2b0198b53f08f4d8ae6",
+          "bytes": 11656
+        },
+        "templates/sf-embedded-data-repair.j2": {
+          "sha256": "0ee7f6176be45f54513cb1ae9a3e111e42fbe22d6ed44688ff1f5a7b5a45adec",
+          "bytes": 9161
+        },
+        "templates/sf-financial-statement-rolling.j2": {
+          "sha256": "6f640e694199c213a40940b3a97d950ea5a830496ef4d21bd1bfa97be59ba71e",
+          "bytes": 7414
+        },
+        "templates/sf-healthcare-cost-benefit-analysis.j2": {
+          "sha256": "5c789bd09da723f38feb1192aabd8683b6f8b1acef19803e57b77c47cd2051cc",
+          "bytes": 7879
+        },
+        "templates/sf-hwpx-document-automation.j2": {
+          "sha256": "3a382fa5767becab9260a9313598585b44f512a3e12e6099758b0d42210d4a25",
+          "bytes": 6709
+        },
+        "templates/sf-industry-correlation-analysis.j2": {
+          "sha256": "5e853c06c0898c062003e8ac91a24bc7f7bd7bcbac4055f1a5a77ea358502231",
+          "bytes": 8132
+        },
+        "templates/sf-inventory-finance-integration.j2": {
+          "sha256": "6f640e694199c213a40940b3a97d950ea5a830496ef4d21bd1bfa97be59ba71e",
+          "bytes": 7414
+        },
+        "templates/sf-medical-data-standardization.j2": {
+          "sha256": "f5c160d266c361fbc1fe740ab77996eb4a15075075d5ea3437cbc84c1b10d767",
+          "bytes": 7009
+        },
+        "templates/sf-ocr-data-extraction.j2": {
+          "sha256": "86a419c4756c81c02ee4e2ec0e660e8e36383e9452c9109c10e35410bedc7b21",
+          "bytes": 7089
+        },
+        "templates/sf-operational-recovery-planning.j2": {
+          "sha256": "92584f46d20ba1f9a8b8cda19cf0f2c69858b9e6a3d2ba35f66986a283730007",
+          "bytes": 7815
+        },
+        "templates/sf-ppt-formatting-optimization.j2": {
+          "sha256": "25227784bc6f0deec2f5ec4ecd022b9d48a0899027b5d8f0ce810b0ee837f9d7",
+          "bytes": 10732
+        },
+        "templates/sf-production-capacity-planning.j2": {
+          "sha256": "4860b8dd99078e243287ed7e1a9c4e09166a3bd2e7ea51ec34a26e29e38b60a2",
+          "bytes": 6696
+        },
+        "templates/sf-sales-pivot-analysis.j2": {
+          "sha256": "0e9a0e4ed37ab97dfde62f147335e216ac91d3daffa5ba823bb897c28a8032a9",
+          "bytes": 13114
+        },
+        "templates/sf-sec-13f-financial-analysis.j2": {
+          "sha256": "60d6ed27832a62ab8eb5f52fc9d34744af5e34bedc8c98874e935fb49cffd368",
+          "bytes": 7020
+        },
+        "templates/sf-supply-chain-replenishment.j2": {
+          "sha256": "6f640e694199c213a40940b3a97d950ea5a830496ef4d21bd1bfa97be59ba71e",
+          "bytes": 7414
+        },
+        "templates/sf-universal-v2.j2": {
+          "sha256": "04f8d2c51cebf50c0df1ceabfe816d53b4936f2c2a3a534dc6776f4f10f374ab",
+          "bytes": 7190
+        },
+        "templates/sf-universal.j2": {
+          "sha256": "e5caabe78044cb28a2c4fa1f43c768cd79e08f997e02cb10014dbdd2ff6e8b94",
+          "bytes": 6165
+        },
+        "templates/sf-weighted-risk-assessment.j2": {
+          "sha256": "1c6b0047c149a8139ad5b10001720d5053e4652153ae986b0c39b11cadc8b6ba",
+          "bytes": 7111
+        },
+        "templates/sf-weighted.j2": {
+          "sha256": "1abe6424af5e86d5cef5e72cf60d842b365e87b828fb41565e265c2766db7788",
+          "bytes": 15114
+        }
+      },
+      "file_count": 52,
+      "bytes": 251243
+    },
+    "skill_memories/tb21_seed": {
+      "files": {
+        "em/closed_loop.md": {
+          "sha256": "ef394004dbb1f278791d5fba0c3d5f513565a09bd72f7996fbbf9bc568556015",
+          "bytes": 419
+        },
+        "manifest.yaml": {
+          "sha256": "29ffe9b058f578934e6990614b1eb1f9fa6cbaf46b962e6a25fb081e1bf4ecea",
+          "bytes": 589
+        },
+        "strategies.py": {
+          "sha256": "23eaaa2c8e40260c5e199df68d29cb214bf0c98a1430c6f84acb0f803445b847",
+          "bytes": 5537
+        }
+      },
+      "file_count": 3,
+      "bytes": 6545
+    }
+  },
+  "tree_sha256": "afea57d670a22cfee95c15b8d580bc0835de805c76f10c5de423a8345ca13193"
+}

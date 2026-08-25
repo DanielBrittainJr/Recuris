@@ -1,0 +1,44 @@
+{
+ "train": [
+  "0",
+  "5",
+  "13",
+  "18",
+  "21",
+  "26",
+  "28",
+  "31",
+  "34",
+  "40",
+  "51",
+  "75",
+  "83",
+  "90",
+  "91",
+  "101"
+ ],
+ "dev": [
+  "6",
+  "10",
+  "12",
+  "17",
+  "24",
+  "25",
+  "29",
+  "30",
+  "36",
+  "47",
+  "63",
+  "108"
+ ],
+ "test": [],
+ "selection_rule": "Train = 16 tasks with vanilla llm_agent baseline pass<=1/8 (k=8, merged 20260628-29 runs) AND champion full_v31 pass>=3/4, i.e. hardest-for-bare tasks with proven memory-fixability. Dev = 6 anchors with vanilla 8/8 (10/12/25 are champion-regression-prone sentinels, 17/24/47 stable) + 6 improvable tasks with vanilla 1-2/8 and champion>=3/4. Wall-suspect tasks (both vanilla<=2/8 and champion<=1/4: 41,76,82,105,20,64,93,32,38) are excluded from train and dev. All remaining 86 tasks are frozen; no test id is read during the run.",
+ "fixed_budget": {
+  "k": 4,
+  "train_tasks": 16,
+  "dev_tasks": 12,
+  "complete_entire_train_tranche": true,
+  "stop_rule": "Complete every scheduled train trial; run the paired repair screen before spending the held-out dev gate."
+ },
+ "note": "Byte-identical task lists to splits_retail_from0_v1 (the split whose round 1 accepted at +19.4pp). Only the trial budget changes, 3 -> 4, because a package re-evaluated unchanged moved most of its tasks at the smaller budget. Used to isolate the new regression perception from the partition."
+}

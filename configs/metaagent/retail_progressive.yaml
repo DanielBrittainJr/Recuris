@@ -1,0 +1,21 @@
+extends: _base/tau2
+description: >-
+  The retail evolution campaign. Progressive gating: a round that improves on
+  held-out evidence advances the working base, and the frozen-split settlement
+  at the end decides what is kept.
+domain: retail
+arm: autonomous
+agent: recuris_agent
+skill_memory: null
+split: splits/tau2/retail_from0_v1_k4.json
+metaagent:
+  rounds: 4
+  k: 4
+  base: neutral
+  round_gate: progressive
+  power_gate: warn
+  reg_cap: 1
+  meta_workflow: hierarchical
+  diagnosis_workers: 3
+  max_sims: 1400
+  proxy_port: 4047

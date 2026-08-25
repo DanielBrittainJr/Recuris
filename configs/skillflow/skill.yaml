@@ -1,0 +1,13 @@
+description: >-
+  SkillFlow treatment arm. Each family is rendered with the template its
+  routing policy selects.
+benchmark: skillflow
+arm: skill
+skill_memory: skillflow
+max_concurrency: 3
+model: null
+notes: >-
+  routing=default maps each family to sf-<family-slug>.j2 and is the policy for
+  new work. routing=frozen_insample additionally applies six per-family
+  overrides that were chosen by reading those families own scores; those six
+  are in-sample and the renderer says so when you select it.

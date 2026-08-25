@@ -1,0 +1,13 @@
+# SkillFlow frozen routing override (family-slug -> winning template file)
+# 依据 experiments/SkillFlow_campaign_scoreboard.md + SKILL_MEMORY_SUMMARY.md 的"定版"记录,
+# 用真实旧跑批 config→分数 台账核实的每族最佳版本(in-sample,非泛化)。
+# 仅列需要覆盖默认(sf-<slug>.j2)的族;未列出的族走默认。
+# 格式:<family-slug> <template-filename>   (# 开头为注释)
+#
+# family-slug            template                              证据(job=最佳分)
+embedded-data-repair      sf-embedded-data-repair-GK.j2        # sk-embedded-GK-s2 = 8/8 (canonical=4/8)
+weighted-risk-assessment  sf-weighted.j2                       # sk-v5-weighted    = 7/8 (canonical=0/8)
+healthcare-cost-benefit-analysis  sf-universal-v2.j2           # v2门 ~6/9 (7,6,4)  (canonical=1/9)
+distribution-center-auditing      sf-universal-v2.j2           # v2门  5/8 (5,5,5)   (canonical=3/8)
+inventory-finance-integration     sf-universal-v2.j2           # v2门  4/8 (4,4,3)   (canonical=0/8)
+industry-correlation-analysis     sf-universal-v2.j2           # v2门  7/8 (7,7)     (canonical=6/8)

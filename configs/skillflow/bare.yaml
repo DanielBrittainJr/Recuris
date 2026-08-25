@@ -1,0 +1,9 @@
+description: >-
+  SkillFlow control arm: the stock scaffold with no Skill Memory. Configs are
+  rendered per family by `recuris skillflow render-configs`, never committed,
+  because a committed config carries a credential and drifts from its pair.
+benchmark: skillflow
+arm: bare
+skill_memory: null
+max_concurrency: 3
+model: null

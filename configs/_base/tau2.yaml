@@ -1,0 +1,29 @@
+# The shared tau2-Bench treatment. Every tau2 arm extends this and states only
+# its delta, so two arms of a pair cannot differ in anything neither of them
+# mentions.
+#
+# The three treatment switches are declared explicitly, always, including when
+# false. They are read by the benchmark's orchestrator rather than by the
+# Recuris kernel, which makes them easy to leave unset by accident -- and two
+# arms that differ only in an unset environment variable look identical on the
+# command line and score differently.
+benchmark: tau2
+domain: retail
+num_trials: 4
+max_concurrency: 4
+open_downstream: false
+
+treatment:
+  gate_term: true        # do not end the episode while verified work is pending
+  gate_term_wm: true     # that gate reads the ledger, not the surface text
+  status_board: true     # render the customer-visible status board
+
+# The frozen reference treatment. Both the user simulator and the assertion
+# judge stay on this whatever the downstream agent is: they are part of the
+# evaluation protocol, not part of the system under test.
+llm_args:
+  temperature: 0.0
+  timeout: 360
+  num_retries: 2
+  reasoning_effort: medium
+  allowed_openai_params: [reasoning_effort]

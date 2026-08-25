@@ -1,0 +1,32 @@
+{
+  "comment": "Frozen tau2-Bench splits. Each file carries its own selection rule; this manifest records what the splits are for and pins their bytes.",
+  "benchmark": "tau2-Bench",
+  "data_tag": "v1.0.1",
+  "data_commit": "fc0055dc4e0a316c3f83133267fbd6faaa770992",
+  "splits": {
+    "airline_from0_v3.json": {
+      "sha256": "116344a18369ae7a6e4e6d2e48a2c41c2f8c565d585fbeab8987c87bac3cdde3",
+      "domain": "airline",
+      "train": 11,
+      "dev": 10,
+      "test": 0,
+      "k": 6
+    },
+    "retail_from0_v1.json": {
+      "sha256": "00921c1440203827f6e9e072cc840d8a0e3e8ea875ddbba6a94c32c30acc33b5",
+      "domain": "retail",
+      "train": 16,
+      "dev": 12,
+      "test": 0,
+      "k": 3
+    },
+    "retail_from0_v1_k4.json": {
+      "sha256": "f39bd22dc39d516ca647f164f961819227cf60eff403ec60b258ef219a53b7dd",
+      "domain": "retail",
+      "train": 16,
+      "dev": 12,
+      "test": 0,
+      "k": 4
+    }
+  }
+}

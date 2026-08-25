@@ -1,0 +1,24 @@
+name: tb21_m0_v2
+wm:
+  entry_kind: generic_item
+  manager: local:strategies.TerminalBlueprintOnce
+  schema:
+    max_entries: 8
+grounding:
+  matcher: delivery_receipt
+delivery:
+  - use: boundary_inject
+    cfg:
+      at: turn_start
+      when: first_turn
+      em_type: procedure
+      tool: "*"
+      max_cards: 8          # 载体容量:默认 1 只投字母序第一张,新增卡永远送不到模型
+checkers:
+  - use: local:strategies.TerminalCompletionChecker
+    at: draft_ready
+    cfg:
+      max_blocks: 2
+board:
+  status_board: false
+  notice_in_wm: never

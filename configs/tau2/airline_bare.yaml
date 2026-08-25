@@ -1,0 +1,7 @@
+extends: _base/tau2
+description: tau2 airline, stock agent. The control half of the airline pair.
+domain: airline
+arm: bare
+agent: llm_agent
+skill_memory: null
+split: splits/tau2/airline_from0_v3.json

@@ -1,0 +1,8 @@
+extends: _base/tau2
+description: >-
+  tau2 retail with the settled retail package. Paired with retail_bare.
+domain: retail
+arm: skill
+agent: recuris_agent
+skill_memory: tau2_retail
+split: splits/tau2/retail_from0_v1_k4.json

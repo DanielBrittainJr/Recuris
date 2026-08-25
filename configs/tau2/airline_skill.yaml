@@ -1,0 +1,10 @@
+extends: _base/tau2
+description: >-
+  tau2 airline with the settled airline package, which carries a plugin: the
+  feasibility oracle is domain code and lives in the package, human-reviewed,
+  never in the kernel.
+domain: airline
+arm: skill
+agent: recuris_agent
+skill_memory: tau2_airline
+split: splits/tau2/airline_from0_v3.json

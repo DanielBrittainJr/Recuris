@@ -1,0 +1,37 @@
+{
+  "train": [
+    "8",
+    "11",
+    "14",
+    "18",
+    "19",
+    "20",
+    "32",
+    "22",
+    "30",
+    "40",
+    "42"
+  ],
+  "dev": [
+    "0",
+    "9",
+    "31",
+    "35",
+    "2",
+    "16",
+    "21",
+    "23",
+    "24",
+    "33"
+  ],
+  "test": [],
+  "selection_rule": "v3 = v2 splits + evidence-budget upgrade, informed by the v2 postmortem (3 rounds, 3 rejections; same-treatment train readings 42.9/61.9/38.1 at k=3 = 24pp swing; per-component gains in airline are superadditive per the tau2 ablation EM77.0/WM79.5/Full84.0 vs base 75.5, so single-round increments sit below a k=3 gate's detection band). Train v3 = v2's 7 (all 6 remaining FIXABLE-PROVEN + MIXED 32) + 4 EASY-BOTH margin tasks (22,30,40,42: bare 3/4, champion 4/4) added for lesion-sample breadth; the airline pool has NO unused improvable tasks (9 FIXABLE + 3 MIXED total, 4 of them held in dev for transfer evidence). Dev v3 = v2 dev unchanged (2 anchors + regression sentinels 31/35 + margins 2/16 + held-out same-family 21/23/24/33), preserving cross-campaign comparability. Budget upgrade: k=6 (halves the gate CI width; dev cell count 30->60), rounds 5, --provisional-accept ON (repair >= +4 cells and dev net >= 0 cells and regressions <= reg-cap lets a rejected candidate serve as next round's working base exactly once; committed lineage advances only on a strict accept measured against the committed best; frozen-set endgame settles).",
+  "fixed_budget": {
+    "k": 6,
+    "train_tasks": 11,
+    "dev_tasks": 10,
+    "complete_entire_train_tranche": true,
+    "stop_rule": "Complete every scheduled train trial; run the paired repair screen before spending the held-out dev gate."
+  },
+  "note": "Airline from-zero campaign v3. Derived from air_bare50 (k=4) x air_full50 champion cross-classification (FIXABLE-PROVEN: 14,11,19,20,24,8,18,21,33; MIXED: 23,32,35; WALL: 7,29,39,44 excluded; CHAMP-REGRESSED: 31 kept in dev as sentinel). Estimated ~234 sims/round (train 66 + repair ~48 + dev 120), 5 rounds + k=6 bootstrap ~= 1300 sims."
+}

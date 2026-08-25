@@ -1,0 +1,132 @@
+diff --git a/src/harbor/environments/docker/docker.py b/src/harbor/environments/docker/docker.py
+index b387e83..b8d1889 100644
+--- a/src/harbor/environments/docker/docker.py
++++ b/src/harbor/environments/docker/docker.py
+@@ -626,24 +626,39 @@ class DockerEnvironment(BaseEnvironment):
+ 
+         env = self._compose_env_vars(include_os_env=True)
+ 
++        keep_exec_stdin_open = (
++            len(command) > 0 and command[0] == "exec" and stdin_data is None
++        )
+         process = await asyncio.create_subprocess_exec(
+             *full_command,
+             env=env,
+             stdin=(
+                 asyncio.subprocess.PIPE
+-                if stdin_data is not None
++                if stdin_data is not None or keep_exec_stdin_open
+                 else asyncio.subprocess.DEVNULL
+             ),
+             stdout=asyncio.subprocess.PIPE,
+             stderr=asyncio.subprocess.STDOUT,
+         )
+ 
+-        if on_output is not None:
++        if keep_exec_stdin_open:
++            async def noop_output(line: str, stream: str) -> None:
++                return None
++
++            result = await self._collect_streamed_output(
++                process,
++                timeout_sec=timeout_sec,
++                stdin_data=stdin_data,
++                on_output=on_output or noop_output,
++                keep_stdin_open=True,
++            )
++        elif on_output is not None:
+             result = await self._collect_streamed_output(
+                 process,
+                 timeout_sec=timeout_sec,
+                 stdin_data=stdin_data,
+                 on_output=on_output,
++                keep_stdin_open=keep_exec_stdin_open,
+             )
+         else:
+             result = await self._collect_buffered_output(
+@@ -696,6 +728,7 @@ class DockerEnvironment(BaseEnvironment):
+         timeout_sec: int | None,
+         stdin_data: bytes | None = None,
+         on_output: OutputCallback,
++        keep_stdin_open: bool = False,
+     ) -> ExecResult:
+         stdout_stream = process.stdout
+         if stdout_stream is None:
+@@ -743,6 +776,13 @@ class DockerEnvironment(BaseEnvironment):
+             if process.returncode is None:
+                 await DockerEnvironment._terminate_process(process)
+             raise
++        finally:
++            if keep_stdin_open and process.stdin is not None:
++                process.stdin.close()
++                try:
++                    await process.stdin.wait_closed()
++                except (BrokenPipeError, ConnectionResetError):
++                    pass
+ 
+         return ExecResult(
+             stdout="".join(lines) or None,
+@@ -1143,7 +1183,11 @@ class DockerEnvironment(BaseEnvironment):
+         timeout_sec: int | None,
+         user: str | int | None,
+     ) -> ExecResult:
+-        exec_command = ["exec"]
++        # Run compose exec without allocating a TTY. On the current rootless
++        # Docker setup, commands without -T can return before the process inside
++        # the container has actually finished, which makes the verifier read the
++        # reward file too early.
++        exec_command = ["exec", "-T"]
+ 
+         if cwd:
+             exec_command.extend(["-w", cwd])
+diff --git a/src/harbor/environments/docker/docker_unix.py b/src/harbor/environments/docker/docker_unix.py
+index 74c8388..79da074 100644
+--- a/src/harbor/environments/docker/docker_unix.py
++++ b/src/harbor/environments/docker/docker_unix.py
+@@ -3,6 +3,7 @@
+ from __future__ import annotations
+ 
+ import io
++import os
+ import sys
+ import tarfile
+ from collections.abc import Awaitable, Callable
+@@ -139,6 +140,9 @@ class UnixOps:
+             ) from tar_error
+ 
+     async def upload_file(self, source_path: Path | str, target_path: str) -> None:
++        if os.environ.get("HARBOR_DOCKER_UPLOAD_MODE") == "tar":
++            await self._upload_file_with_tar(source_path, target_path)
++            return
+         try:
+             await self._env._run_docker_compose_command(
+                 ["cp", str(source_path), f"{MAIN_SERVICE_NAME}:{target_path}"],
+@@ -150,15 +154,19 @@ class UnixOps:
+             )
+ 
+     async def upload_dir(self, source_dir: Path | str, target_dir: str) -> None:
+-        try:
+-            await self._env._run_docker_compose_command(
+-                ["cp", f"{source_dir}/.", f"{MAIN_SERVICE_NAME}:{target_dir}"],
+-                check=True,
+-            )
+-        except RuntimeError as cp_error:
+-            await self._fallback_to_tar(
+-                cp_error, lambda: self._upload_dir_with_tar(source_dir, target_dir)
+-            )
++        if os.environ.get("HARBOR_DOCKER_UPLOAD_MODE") == "tar":
++            await self._upload_dir_with_tar(source_dir, target_dir)
++        else:
++            try:
++                await self._env._run_docker_compose_command(
++                    ["cp", f"{source_dir}/.", f"{MAIN_SERVICE_NAME}:{target_dir}"],
++                    check=True,
++                )
++            except RuntimeError as cp_error:
++                await self._fallback_to_tar(
++                    cp_error,
++                    lambda: self._upload_dir_with_tar(source_dir, target_dir),
++                )
+         # Fix CRLF line endings when the host is Windows: shell scripts with
+         # Windows line endings fail to execute inside the Linux container.
+         if sys.platform == "win32":

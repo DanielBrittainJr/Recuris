@@ -1,0 +1,9 @@
+description: >-
+  The seed package, with the same attempt budget and NO learning between
+  attempts. This is the arm that separates the machine from the learning: any
+  difference between m0 and bare is the package alone.
+benchmark: tb21
+arm: m0
+skill_memory: tb21_seed
+max_concurrency: 3
+split: splits/tb21/tta_taskset_v3.json

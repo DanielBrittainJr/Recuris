@@ -1,0 +1,18 @@
+extends: _base/tau2
+description: The airline evolution campaign. Same machine, different domain.
+domain: airline
+arm: autonomous
+agent: recuris_agent
+skill_memory: null
+split: splits/tau2/airline_from0_v3.json
+metaagent:
+  rounds: 5
+  k: 6
+  base: neutral
+  round_gate: progressive
+  power_gate: warn
+  reg_cap: 1
+  meta_workflow: hierarchical
+  diagnosis_workers: 3
+  max_sims: 1400
+  proxy_port: 4047

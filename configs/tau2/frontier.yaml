@@ -1,0 +1,29 @@
+extends: _base/tau2
+description: >-
+  Transfer arm over a frontier provider. Identical to open_weight except for
+  the endpoint; both go through the same OpenAI-compatible path.
+arm: skill
+agent: recuris_agent
+skill_memory: tau2_retail
+open_downstream: true
+model: null            # openai/<provider-model-name>
+
+# Declared explicitly, and deliberately different from the base.
+#
+# The frontier arms reported in the README ran with all three switches INERT,
+# while the arms on the model the packages were evolved on ran with all three
+# on. One runner, two treatments. That is a fact about what happened, not a
+# recommendation, and it is recorded here rather than left to be rediscovered
+# from an environment that was never captured.
+#
+# For a new frontier arm, decide which treatment you want and say so. What you
+# must not do is leave it to whatever the shell happened to export.
+treatment:
+  gate_term: false
+  gate_term_wm: false
+  status_board: false
+
+notes: >-
+  Every run writes its effective treatment into _params.json, so a result can
+  always be traced back to the switches it ran under. The README states which
+  reported row ran under which treatment.

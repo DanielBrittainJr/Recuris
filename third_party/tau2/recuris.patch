@@ -1,0 +1,901 @@
+diff --git a/src/tau2/agent/llm_agent.py b/src/tau2/agent/llm_agent.py
+index 652974f..f756c6b 100644
+--- a/src/tau2/agent/llm_agent.py
++++ b/src/tau2/agent/llm_agent.py
+@@ -1,3 +1,5 @@
++import os
++import re
+ from typing import Generic, List, Optional, TypeVar
+ 
+ from loguru import logger
+@@ -15,6 +17,7 @@ from tau2.data_model.message import (
+     Message,
+     MultiToolMessage,
+     SystemMessage,
++    ToolMessage,
+     UserMessage,
+ )
+ from tau2.data_model.tasks import Action, Task
+@@ -102,6 +105,21 @@ class LLMAgent(
+             messages=message_history,
+         )
+ 
++    # --- skill-memory compile_to_gate: procedural delivery of retail skill R1 ---
++    # Deterministic HARNESS-side enforcement (NOT model self-assessment): if the customer has confirmed a
++    # change and the agent replies with text instead of the action, and no write tool has executed, force a
++    # re-decision toward the tool call. This is the procedural (vs declarative-card) realization of R1.
++    # Opt-in via env TAU2_GATE=1, so it never affects the baseline / other runs.
++    _WRITE_TOOLS = {
++        "exchange_delivered_order_items", "return_delivered_order_items", "cancel_pending_order",
++        "modify_pending_order_items", "modify_pending_order_payment", "modify_pending_order_address",
++        "modify_user_address",
++    }
++    _CONFIRM_RE = re.compile(
++        r"\b(yes|yeah|yep|sure|please do|go ahead|confirm|proceed|do it|correct|sounds good|that works|ok(ay)?|perfect|great)\b",
++        re.I,
++    )
++
+     def generate_next_message(
+         self, message: ValidAgentInputMessage, state: LLMAgentStateType
+     ) -> tuple[AssistantMessage, LLMAgentStateType]:
+@@ -110,8 +128,153 @@ class LLMAgent(
+         """
+         assistant_message = self._generate_next_message(message, state)
+         state.messages.append(assistant_message)
++        if os.getenv("TAU2_GATE") == "1":
++            assistant_message, state = self._skill_gate_force_action(
++                message, assistant_message, state
++            )
++        if os.getenv("TAU2_WRITE_REVIEW") == "1":
++            assistant_message, state = self._write_review_checkpoint(
++                assistant_message, state
++            )
+         return assistant_message, state
+ 
++    @property
++    def _write_tool_names(self) -> set:
++        names = getattr(self, "_wtn_cache", None)
++        if names is None:
++            names = set()
++            for t in self.tools or []:
++                f = getattr(t, "_func", None)
++                mut = getattr(f, "__mutates_state__", None) or getattr(
++                    getattr(f, "__func__", None), "__mutates_state__", None
++                )
++                if mut:
++                    names.add(t.name)
++            self._wtn_cache = names
++        return names
++
++    def _write_review_checkpoint(self, assistant_message, state):
++        """Agent-side write-review (TAU2_WRITE_REVIEW=1): exemplar docs at call time.
++
++        If this turn's message contains an unreviewed WRITE call, keep the (call + review
++        text) pair in the agent's OWN state and regenerate; only the post-review call is
++        returned to the orchestrator (trajectory stays replay-clean). Once per call: a
++        generation whose immediately-preceding context is the review marker passes through.
++        """
++        from tau2.agent.write_review import REVIEW_MARKER, build_review_text
++
++        if not assistant_message.tool_calls:
++            return assistant_message, state
++        writes = [
++            tc for tc in assistant_message.tool_calls if tc.name in self._write_tool_names
++        ]
++        if not writes:
++            return assistant_message, state
++        # resubmission? the message right before this generation is our review text
++        prev = state.messages[-2] if len(state.messages) >= 2 else None
++        if (
++            isinstance(prev, ToolMessage)
++            and (prev.content or "").startswith(REVIEW_MARKER)
++        ):
++            return assistant_message, state
++        # bounce inside agent state: synthetic results for ALL calls in the batch
++        review_text = build_review_text([tc.name for tc in writes])
++        for tc in assistant_message.tool_calls:
++            state.messages.append(
++                ToolMessage(
++                    id=tc.id,
++                    role="tool",
++                    content=review_text
++                    if tc.name in self._write_tool_names
++                    else "[Not executed in this round - re-submit after the review checkpoint.]",
++                    requestor="assistant",
++                    error=False,
++                )
++            )
++        logger.info(f"[write_review] {[tc.name for tc in writes]} -> agent-side review")
++        reviewed = generate(
++            model=self.llm,
++            tools=self.tools,
++            messages=state.system_messages + state.messages,
++            call_name="agent_response",
++            **self.llm_args,
++        )
++        state.messages.append(reviewed)
++        # debug dump (TAU2_WREV_DEBUG=<jsonl path>): did the review change the call?
++        dbg = os.getenv("TAU2_WREV_DEBUG")
++        if dbg:
++            try:
++                import json as _json
++
++                orig = [(tc.name, tc.arguments) for tc in assistant_message.tool_calls]
++                new = [
++                    (tc.name, tc.arguments) for tc in (reviewed.tool_calls or [])
++                ]
++                with open(dbg, "a", encoding="utf-8") as f:
++                    f.write(
++                        _json.dumps(
++                            {
++                                "orig": orig,
++                                "reviewed": new,
++                                "changed": orig != new,
++                                "abandoned_to_text": not bool(reviewed.tool_calls),
++                            },
++                            ensure_ascii=False,
++                            default=str,
++                        )
++                        + "\n"
++                    )
++            except Exception:
++                pass
++        return reviewed, state
++
++    def _skill_gate_force_action(self, message, assistant_message, state):
++        # Intent-vs-execution LEDGER predicate (procedural delivery of retail skill R1).
++        # Fire when the agent yields its turn with pure TEXT (no tool call), while the ledger shows an
++        # outstanding confirmed-but-unexecuted change: i.e. the customer confirmed a change SOMEWHERE in the
++        # dialogue AND no write tool has executed yet. (v1 wrongly required the *immediate* prior message to be
++        # the confirmation; in real UNDER_ACTION traces the give-up text lands a turn later, after a read-tool
++        # result, so it fired ~0x. The ledger is turn-position-independent, which is the whole point.)
++        if assistant_message.tool_calls:
++            return assistant_message, state  # agent took an action this turn -> nothing to force
++        # (a) no write tool anywhere in history  AND  (b) fire at most once per conversation
++        already_nudged = False
++        for m in state.messages:
++            if (
++                isinstance(m, UserMessage)
++                and m.content
++                and m.content.startswith("[SYSTEM CHECK")
++            ):
++                already_nudged = True
++            for tc in getattr(m, "tool_calls", None) or []:
++                if getattr(tc, "name", None) in self._WRITE_TOOLS:
++                    return assistant_message, state
++        if already_nudged:
++            return assistant_message, state  # gave one forcing nudge already; don't hammer
++        # (c) a genuine customer confirmation exists somewhere (exclude our own SYSTEM CHECK messages)
++        confirmed = any(
++            isinstance(m, UserMessage)
++            and m.content
++            and not m.content.startswith("[SYSTEM CHECK")
++            and self._CONFIRM_RE.search(m.content)
++            for m in state.messages
++        )
++        if not confirmed:
++            return assistant_message, state
++        nudge = UserMessage(
++            role="user",
++            content=(
++                "[SYSTEM CHECK - not from the customer] You replied with a message but did NOT call any action "
++                "tool, while the customer has confirmed the change. A confirmation reply is not the action itself. "
++                "Now make the required tool call (exchange/return/modify/cancel) with the correct arguments. "
++                "Respond with a tool call, not a message."
++            ),
++        )
++        logger.info("[skill_gate] forcing action: confirmed intent but no write tool called")
++        forced = self._generate_next_message(nudge, state)
++        state.messages.append(forced)
++        return forced, state
++
+     def _generate_next_message(
+         self, message: ValidAgentInputMessage, state: LLMAgentStateType
+     ) -> AssistantMessage:
+diff --git a/src/tau2/agent/write_review.py b/src/tau2/agent/write_review.py
+new file mode 100644
+index 0000000..dda5c1c
+--- /dev/null
++++ b/src/tau2/agent/write_review.py
+@@ -0,0 +1,116 @@
++"""Write-review checkpoint — per-tool exemplar memory delivered at call time (TAU2_WRITE_REVIEW=1).
++
++AGENT-SIDE by design: when the agent produces a tool-call message containing an unreviewed WRITE
++call, the call is NOT returned to the orchestrator. Instead the (call + synthetic review result)
++pair is appended to the agent's OWN message state, and the agent regenerates with the tool's usage
++guide in view; only the post-review call ever reaches the orchestrator/environment. This keeps the
++official trajectory replay-clean (the evaluator re-executes every mutating call in the trajectory
++and compares outputs — an orchestrator-side bounce would break that).
++
++Memory framing: content = ACTION-RESULT exemplars (correct call with ABSTRACT placeholder ids +
++common mistakes with reasons — anti-anchoring, no task answers, derived from tool contracts and
++failure-mode analysis); delivery = structural checkpoint at the moment of action (once per call).
++
++Safety fuses (from prior iterations' lessons):
++- WRITE tools only (reads are frequent and harmless).
++- "If already correct, re-submit UNCHANGED" (vs weak-model self-doubt flip-flops).
++- Abstract ids in examples (vs the Iter-6 param-anchoring failure).
++"""
++
++from __future__ import annotations
++
++REVIEW_MARKER = "[WRITE REVIEW CHECKPOINT"
++
++WRITE_REVIEW_DOCS = {
++    "exchange_delivered_order_items": (
++        "Purpose: swap delivered items for DIFFERENT variants of the SAME product.\n"
++        "Correct example: the customer exchanges a small lamp for the medium one. From the order\n"
++        "details the current small lamp has item id A; from get_product_details the medium\n"
++        "variant has item id B. Then: item_ids=[A], new_item_ids=[B]. A and B MUST be different.\n"
++        "Common mistakes:\n"
++        "- new_item_ids identical to item_ids (e.g. [A] -> [A]): exchanges nothing, always wrong.\n"
++        "  new_item_ids are the REPLACEMENT variant ids, looked up via get_product_details.\n"
++        "- Inventing an id that never appeared in any earlier tool result.\n"
++        "- Wrong pairing: new_item_ids[k] must be the replacement for item_ids[k] (same position,\n"
++        "  same product, different variant).\n"
++        "- payment_method_id must be an EXISTING method id from the user or order details."
++    ),
++    "modify_pending_order_items": (
++        "Purpose: change pending-order items to DIFFERENT variants of the SAME product.\n"
++        "Correct example: change a blue shirt (item id A, from order details) to the red variant\n"
++        "(item id B, from get_product_details): item_ids=[A], new_item_ids=[B]. A != B.\n"
++        "Common mistakes:\n"
++        "- new_item_ids identical to item_ids: modifies nothing, always wrong.\n"
++        "- Ids not present in earlier tool results (never invent ids).\n"
++        "- Wrong position pairing: new_item_ids[k] replaces item_ids[k], same product.\n"
++        "- payment_method_id must be an EXISTING method id from user/order details."
++    ),
++    "return_delivered_order_items": (
++        "Purpose: return delivered items for a refund.\n"
++        "Correct example: return the water bottle (item id A) and the pet bed (item id B) from\n"
++        "order #W...: order_id='#W...', item_ids=[A, B], payment_method_id=<the ORDER'S ORIGINAL\n"
++        "payment method, or an existing gift card>.\n"
++        "REFUND-DESTINATION RULE (frequent failure — check the order's payment_history FIRST):\n"
++        "  A refund may ONLY go to the order's original payment method, or to a gift card already\n"
++        "  on the account. It CANNOT go to a different card just because the customer asks.\n"
++        "  X If the order was PAID BY GIFT CARD and you set payment_method_id to a credit card,\n"
++        "    the tool fails: 'Payment method should be the original payment method'. So if the\n"
++        "    customer asks for the refund on their credit card but the order was paid by gift\n"
++        "    card, tell them up front it must go back to the gift card — do not attempt the\n"
++        "    credit-card refund.\n"
++        "  OK Read payment_history of the order; use that same payment_method_id (or an existing\n"
++        "    gift card if the customer accepts).\n"
++        "Other common mistakes:\n"
++        "- item_ids not taken verbatim from the order details; each item_id must belong to THIS order."
++    ),
++    "cancel_pending_order": (
++        "Purpose: cancel one pending order.\n"
++        "Correct example: cancel_pending_order(order_id='#W...', reason='no longer needed').\n"
++        "Common mistakes:\n"
++        "- reason MUST be exactly 'no longer needed' or 'ordered by mistake' (no other wording).\n"
++        "- order_id must start with '#' and come from the order details.\n"
++        "- One call cancels ONE order; cancel each order separately."
++    ),
++    "modify_pending_order_address": (
++        "Purpose: change the shipping address of one pending order.\n"
++        "Correct example: copy the field FORMAT from addresses you already saw in the user/order\n"
++        "details (address1, address2, city, state as 2-LETTER code like 'NY', country 'USA', zip).\n"
++        "Common mistakes:\n"
++        "- state written out in full ('New York') instead of the 2-letter code ('NY') used\n"
++        "  everywhere in the system data.\n"
++        "- missing zip or address2 (use '' if none)."
++    ),
++    "modify_user_address": (
++        "Purpose: change the user's default address.\n"
++        "Correct example: same field format as existing addresses in the system: state as the\n"
++        "2-LETTER code (e.g. 'NY', 'CO'), country 'USA', zip included, address2='' if none.\n"
++        "Common mistakes:\n"
++        "- state written out in full ('New York') instead of 'NY'.\n"
++        "- fields copied from customer speech without normalizing to the system format."
++    ),
++    "modify_pending_order_payment": (
++        "Purpose: switch the payment method of one pending order.\n"
++        "Correct example: payment_method_id=<an EXISTING method id from the user's profile, e.g.\n"
++        "seen in get_user_details>, order_id from the order details.\n"
++        "Common mistakes:\n"
++        "- payment_method_id that does not exist in the user's profile (never invent ids)."
++    ),
++}
++
++GENERIC_DOC = (
++    "Verify every argument value against the tool description and the data you retrieved earlier "
++    "in this conversation. Never invent identifier values."
++)
++
++
++def build_review_text(write_tool_names: list[str]) -> str:
++    docs = []
++    for name in write_tool_names:
++        docs.append(f"## {name} usage guide\n{WRITE_REVIEW_DOCS.get(name, GENERIC_DOC)}")
++    return (
++        f"{REVIEW_MARKER} - from the system, not the customer] This call was NOT executed. "
++        "Before it runs, review your call against the usage guide below.\n"
++        "- If your call is already correct, submit the SAME tool call again, completely unchanged.\n"
++        "- If you spot a mistake, submit the corrected tool call instead.\n"
++        "Your next tool call will be executed directly.\n\n" + "\n\n".join(docs)
++    )
+diff --git a/src/tau2/config.py b/src/tau2/config.py
+index d8a8ace..14af39c 100644
+--- a/src/tau2/config.py
++++ b/src/tau2/config.py
+@@ -21,11 +21,19 @@ DEFAULT_LLM_TEMPERATURE_USER = 0.0
+ DEFAULT_LLM_ARGS_AGENT = {"temperature": DEFAULT_LLM_TEMPERATURE_AGENT}
+ DEFAULT_LLM_ARGS_USER = {"temperature": DEFAULT_LLM_TEMPERATURE_USER}
+ 
+-DEFAULT_LLM_NL_ASSERTIONS = "gpt-4.1-2025-04-14"
++# DEVIATION (2026-06-28, doubao baseline): canonical NL-assertion judge and
++# env-interface model are gpt-4.1-2025-04-14, which is NOT reachable on the Ark
++# OpenAI-compatible endpoint we use -> pointing both at doubao via LiteLLM's
++# `openai/` route so reward eval (DB & NL_ASSERTION) actually runs. The judge is
++# held constant across baseline & future skill-memory treatment, so the
++# comparison stays fair; absolute scores are NOT comparable to published
++# gpt-4.1-judged tau2 numbers. (No CLI flag exists for these; constant is the
++# only override point.)
++DEFAULT_LLM_NL_ASSERTIONS = "openai/doubao-seed-2-0-pro-260215"
+ DEFAULT_LLM_NL_ASSERTIONS_TEMPERATURE = 0.0
+ DEFAULT_LLM_NL_ASSERTIONS_ARGS = {"temperature": DEFAULT_LLM_NL_ASSERTIONS_TEMPERATURE}
+ 
+-DEFAULT_LLM_ENV_INTERFACE = "gpt-4.1-2025-04-14"
++DEFAULT_LLM_ENV_INTERFACE = "openai/doubao-seed-2-0-pro-260215"
+ DEFAULT_LLM_ENV_INTERFACE_TEMPERATURE = 0.0
+ DEFAULT_LLM_ENV_INTERFACE_ARGS = {"temperature": DEFAULT_LLM_ENV_INTERFACE_TEMPERATURE}
+ 
+diff --git a/src/tau2/domains/banking_knowledge/retrieval.py b/src/tau2/domains/banking_knowledge/retrieval.py
+index 9aa8265..86f04dd 100644
+--- a/src/tau2/domains/banking_knowledge/retrieval.py
++++ b/src/tau2/domains/banking_knowledge/retrieval.py
+@@ -60,6 +60,7 @@ DEFAULT_RETRIEVAL_VARIANT = "alltools"
+ 
+ DEFAULT_DENSE_EMBEDDING_MODEL_OPENAI = "text-embedding-3-large"
+ DEFAULT_DENSE_EMBEDDING_MODEL_OPENROUTER = "qwen3-embedding-8b"
++DEFAULT_DENSE_EMBEDDING_MODEL_DOUBAO = "doubao-embedding-vision-251215"
+ 
+ 
+ def format_all_tools_dense_instructions(variant: "RetrievalVariant") -> str:
+@@ -530,8 +531,8 @@ RETRIEVAL_VARIANTS: Dict[str, RetrievalVariant] = {
+         build_prompt=standard_prompt,
+         kb_search=PipelineSpec(
+             type="embedding",
+-            embedder_type="openai",
+-            embedder_model="text-embedding-3-large",
++            embedder_type="doubao_vision",
++            embedder_model="doubao-embedding-vision-251215",
+         ),
+         supports_top_k=True,
+     ),
+@@ -594,8 +595,8 @@ RETRIEVAL_VARIANTS: Dict[str, RetrievalVariant] = {
+     ),
+     "alltools": all_tools_variant(
+         "alltools",
+-        embedder_type="openai",
+-        embedder_model=DEFAULT_DENSE_EMBEDDING_MODEL_OPENAI,
++        embedder_type="doubao_vision",
++        embedder_model=DEFAULT_DENSE_EMBEDDING_MODEL_DOUBAO,
+     ),
+     "alltools-qwen": all_tools_variant(
+         "alltools-qwen",
+diff --git a/src/tau2/domains/telecom/environment.py b/src/tau2/domains/telecom/environment.py
+index a408c9b..085900b 100644
+--- a/src/tau2/domains/telecom/environment.py
++++ b/src/tau2/domains/telecom/environment.py
+@@ -185,11 +185,13 @@ def get_tasks_split() -> dict[str, list[str]]:
+ 
+ 
+ # Legacy functions for backward compatibility
+-def get_tasks_full() -> list[Task]:
++# NOTE: registry.load_tasks always calls loaders with task_split_name=..., so these
++# must accept (and ignore) it — they already hardcode the full/small split internally.
++def get_tasks_full(task_split_name: Optional[str] = None) -> list[Task]:
+     return get_tasks("full")
+ 
+ 
+-def get_tasks_small() -> list[Task]:
++def get_tasks_small(task_split_name: Optional[str] = None) -> list[Task]:
+     return get_tasks("small")
+ 
+ 
+diff --git a/src/tau2/knowledge/document_preprocessors/embedding_indexer.py b/src/tau2/knowledge/document_preprocessors/embedding_indexer.py
+index 4b68fb2..f0397d1 100644
+--- a/src/tau2/knowledge/document_preprocessors/embedding_indexer.py
++++ b/src/tau2/knowledge/document_preprocessors/embedding_indexer.py
+@@ -8,6 +8,7 @@ from tau2.knowledge.document_preprocessors.base import (
+ from tau2.knowledge.embedders import (
+     OpenAIEmbedder,
+     OpenRouterEmbedder,
++    DoubaoVisionEmbedder,
+ )
+ from tau2.knowledge.embeddings_cache import get_embeddings_cache
+ from tau2.knowledge.registry import register_document_preprocessor
+@@ -15,6 +16,7 @@ from tau2.knowledge.registry import register_document_preprocessor
+ EMBEDDER_REGISTRY = {
+     "openai": OpenAIEmbedder,
+     "openrouter": OpenRouterEmbedder,
++    "doubao_vision": DoubaoVisionEmbedder,
+ }
+ 
+ 
+diff --git a/src/tau2/knowledge/embedders/__init__.py b/src/tau2/knowledge/embedders/__init__.py
+index 6efd2c7..24e3e4b 100644
+--- a/src/tau2/knowledge/embedders/__init__.py
++++ b/src/tau2/knowledge/embedders/__init__.py
+@@ -1,5 +1,6 @@
+ from tau2.knowledge.embedders.base import BaseEmbedder
+ from tau2.knowledge.embedders.openai_embedder import OpenAIEmbedder
+ from tau2.knowledge.embedders.openrouter_embedder import OpenRouterEmbedder
++from tau2.knowledge.embedders.doubao_vision_embedder import DoubaoVisionEmbedder
+ 
+-__all__ = ["BaseEmbedder", "OpenAIEmbedder", "OpenRouterEmbedder"]
++__all__ = ["BaseEmbedder", "OpenAIEmbedder", "OpenRouterEmbedder", "DoubaoVisionEmbedder"]
+diff --git a/src/tau2/knowledge/embedders/doubao_vision_embedder.py b/src/tau2/knowledge/embedders/doubao_vision_embedder.py
+new file mode 100644
+index 0000000..7abf64e
+--- /dev/null
++++ b/src/tau2/knowledge/embedders/doubao_vision_embedder.py
+@@ -0,0 +1,95 @@
++"""Doubao multimodal embedder (Volcengine Ark /embeddings/multimodal endpoint).
++
++Added 2026-06-28 to unblock the banking_knowledge RAG domain. Our Ark-only endpoint
++serves no OpenAI/OpenRouter text-embedding model, but it DOES serve doubao multimodal
++embedding models (e.g. doubao-embedding-vision-251215). Those models reject the
++standard OpenAI /embeddings route ("does not support this api") and must be called
++via /embeddings/multimodal with input items of the form {"type": "text", "text": ...}.
++We send text-only inputs (one call per text) and read data.embedding.
++
++Creds come from env (set by the same .env as agent/user): OPENAI_API_KEY/_BASE_URL or
++META_AGENT_API_KEY/_API_BASE. Embeddings are cached by tau2's EmbeddingsCache, so this
++endpoint is hit only when warming a KB for a new (doc-set, embedder) combination.
++"""
++
++import json
++import os
++import time
++import urllib.request
++from concurrent.futures import ThreadPoolExecutor
++from typing import List
++
++import numpy as np
++
++from tau2.knowledge.embedders.base import BaseEmbedder
++
++DEFAULT_DOUBAO_EMBED_MODEL = "doubao-embedding-vision-251215"
++
++
++class DoubaoVisionEmbedder(BaseEmbedder):
++    """Embedder using a doubao multimodal embedding model on Ark (text inputs only)."""
++
++    def __init__(
++        self,
++        model: str = DEFAULT_DOUBAO_EMBED_MODEL,
++        api_key: str = None,
++        base_url: str = None,
++        max_workers: int = 3,
++        **kwargs,  # tolerate extra params (e.g. query_instruction) passed by callers
++    ):
++        self.model = model
++        self.api_key = (
++            api_key or os.getenv("OPENAI_API_KEY") or os.getenv("META_AGENT_API_KEY")
++        )
++        base = (
++            base_url
++            or os.getenv("OPENAI_BASE_URL")
++            or os.getenv("OPENAI_API_BASE")
++            or os.getenv("META_AGENT_API_BASE")
++        )
++        if not self.api_key or not base:
++            raise ValueError(
++                "DoubaoVisionEmbedder: missing api key / base url "
++                "(set OPENAI_API_KEY + OPENAI_BASE_URL, or META_AGENT_API_KEY/_API_BASE)"
++            )
++        self.url = base.rstrip("/") + "/embeddings/multimodal"
++        self.max_workers = max(1, int(max_workers))
++
++    def _embed_one(self, text: str, retries: int = 4) -> list:
++        body = json.dumps(
++            {"model": self.model, "input": [{"type": "text", "text": text or " "}]}
++        ).encode("utf-8")
++        last = None
++        for attempt in range(retries):
++            try:
++                req = urllib.request.Request(
++                    self.url,
++                    data=body,
++                    headers={
++                        "Authorization": f"Bearer {self.api_key}",
++                        "Content-Type": "application/json",
++                    },
++                )
++                resp = json.loads(urllib.request.urlopen(req, timeout=60).read())
++                d = resp.get("data")
++                if isinstance(d, dict) and "embedding" in d:
++                    return d["embedding"]
++                if isinstance(d, list) and d and "embedding" in d[0]:
++                    return d[0]["embedding"]
++                raise ValueError(f"no embedding in response: {str(resp)[:200]}")
++            except Exception as e:  # transient (rate-limit / network): backoff + retry
++                last = e
++                time.sleep(1.5 * (attempt + 1))
++        raise RuntimeError(
++            f"DoubaoVisionEmbedder failed after {retries} retries: {last}"
++        )
++
++    def embed(self, texts: List[str]) -> np.ndarray:
++        if not texts:
++            raise ValueError("No text to embed.")
++        with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
++            embeddings = list(ex.map(self._embed_one, texts))  # order preserved
++        return np.array(embeddings)
++
++    def get_name(self) -> str:
++        return f"doubao_vision_{self.model}"
+diff --git a/src/tau2/knowledge/embeddings_cache.py b/src/tau2/knowledge/embeddings_cache.py
+index 4c89759..31c1401 100644
+--- a/src/tau2/knowledge/embeddings_cache.py
++++ b/src/tau2/knowledge/embeddings_cache.py
+@@ -573,11 +573,13 @@ def _compute_and_cache_embeddings(
+     from tau2.knowledge.embedders import (
+         OpenAIEmbedder,
+         OpenRouterEmbedder,
++        DoubaoVisionEmbedder,
+     )
+ 
+     EMBEDDER_REGISTRY = {
+         "openai": OpenAIEmbedder,
+         "openrouter": OpenRouterEmbedder,
++        "doubao_vision": DoubaoVisionEmbedder,
+     }
+ 
+     if embedder_type not in EMBEDDER_REGISTRY:
+@@ -619,10 +621,10 @@ def get_unique_embedder_configs_for_retrieval_configs(
+             "openai",
+             {"model": "text-embedding-3-large"},
+         ),
+-        "openai_embeddings": ("openai", {"model": "text-embedding-3-large"}),
++        "openai_embeddings": ("doubao_vision", {"model": "doubao-embedding-vision-251215"}),
+         "openai_embeddings_reranker": ("openai", {"model": "text-embedding-3-large"}),
+-        "alltools": ("openai", {"model": "text-embedding-3-large"}),
+-        "AllTools": ("openai", {"model": "text-embedding-3-large"}),
++        "alltools": ("doubao_vision", {"model": "doubao-embedding-vision-251215"}),
++        "AllTools": ("doubao_vision", {"model": "doubao-embedding-vision-251215"}),
+         "alltools-qwen": ("openrouter", {"model": "qwen3-embedding-8b"}),
+     }
+ 
+diff --git a/src/tau2/knowledge/input_preprocessors/embedding_encoder.py b/src/tau2/knowledge/input_preprocessors/embedding_encoder.py
+index 5363695..329ad2b 100644
+--- a/src/tau2/knowledge/input_preprocessors/embedding_encoder.py
++++ b/src/tau2/knowledge/input_preprocessors/embedding_encoder.py
+@@ -3,6 +3,7 @@ from typing import Any, Dict, List
+ from tau2.knowledge.embedders import (
+     OpenAIEmbedder,
+     OpenRouterEmbedder,
++    DoubaoVisionEmbedder,
+ )
+ from tau2.knowledge.embeddings_cache import (
+     cache_query_embedding,
+@@ -16,6 +17,7 @@ from tau2.knowledge.registry import register_input_preprocessor
+ EMBEDDER_REGISTRY = {
+     "openai": OpenAIEmbedder,
+     "openrouter": OpenRouterEmbedder,
++    "doubao_vision": DoubaoVisionEmbedder,
+ }
+ 
+ 
+diff --git a/src/tau2/orchestrator/orchestrator.py b/src/tau2/orchestrator/orchestrator.py
+index eaf9537..053c683 100644
+--- a/src/tau2/orchestrator/orchestrator.py
++++ b/src/tau2/orchestrator/orchestrator.py
+@@ -1,4 +1,6 @@
+ import json
++import os
++import re
+ import time
+ import uuid
+ from abc import ABC, abstractmethod
+@@ -257,6 +259,247 @@ class BaseOrchestrator(ABC, Generic[BaseAgentT, BaseUserT, TrajectoryItemT]):
+         except Exception as e:
+             logger.warning(f"Error during user cleanup: {e}")
+ 
++    # Skill-memory compile_to_gate — TERMINAL variant (procedural delivery of retail skill R1).
++    _TERM_CONFIRM_RE = re.compile(
++        r"\b(yes|yeah|yep|sure|please do|go ahead|confirm|proceed|do it|correct|sounds good|"
++        r"that works|ok(ay)?|perfect|great)\b",
++        re.I,
++    )
++    _TERM_MAX_FORCED_ROUNDS = 4  # allow multi-item changes (e.g. exchange 2 items) to complete
++    _TERM_SOLICIT_RE = re.compile(
++        r"(shall i|should i|would you like me to|do you want me to|want me to|please confirm|"
++        r"can i (go|proceed|process)|i can (go ahead|proceed|process)|i will (go ahead|proceed|process)|"
++        r"i'll (go ahead|proceed|process)|is (that|this) correct|confirm (if|that|whether)|"
++        r"let me know if you'?d like me to)",
++        re.I,
++    )
++    # v5 ledger predicate (opt-in TAU2_GATE_TERM_V5=1): catches PARTIAL execution too.
++    # Insight (2026-07-02 failure forensics): 37% of retail "wrote-wrong" failures are actually PARTIAL
++    # executions — the agent completed k of n confirmed changes, the user confirmed the remaining one(s) and
++    # stopped, and the v3 predicate ("any write executed -> don't fire") let them through. The correct ledger
++    # question is not "was anything written?" but "is there a confirmed-but-unexecuted change AFTER the last
++    # write?". Tuned offline on the 977-sim retail baseline: ACTION-confirm + agent-was-presenting = 2% fire
++    # rate on passing sims, 47% on failing sims. (Predicate tuned on retail = development tier; airline is the
++    # held-out validation.)
++    _TERM_ACTION_CONFIRM_RE = re.compile(
++        r"(go ahead|proceed|please (process|cancel|return|exchange|modify|update|change|do)|"
++        r"i confirm|yes,? (please|i want|i'?d like|process|cancel|return|exchange|modify|update)|"
++        r"do it|make (that|the|these|those) (change|exchange|return|modification|cancellation)|"
++        r"confirm (that|the|these|those|all)|that'?s? all correct.*(confirm|proceed|go ahead|process))",
++        re.I,
++    )
++    _TERM_PRESENT_RE = re.compile(
++        r"(shall i|should i|would you like me to|do you want me to|want me to|please confirm|"
++        r"can i (go|proceed|process)|to confirm|here are the details|is (that|this) correct|"
++        r"let me know if)",
++        re.I,
++    )
++
++    def _maybe_force_terminal_action(self) -> None:
++        """
++        When the episode ends on USER_STOP with a confirmed-but-unexecuted change on the ledger, grant the
++        agent ONE forcing turn (up to _TERM_MAX_FORCED_ROUNDS tool rounds) so it can flush the confirmed
++        mutation before the session closes. This is the ORCHESTRATOR-level realization of skill R1 — the mid-turn
++        gate cannot help Mode A because the user's confirm carries ###STOP### and no agent turn follows.
++
++        Honesty conditions: (1) detection is deterministic/harness-side (env mutation typing + the stop event),
++        NOT model self-assessment; (2) the agent chooses the tool AND args itself — we never supply the answer,
++        so it is non-cheating; (3) the predicate is general (any confirmed change with no mutating tool executed),
++        so it is not a per-task patch. Opt-in via env TAU2_GATE_TERM=1 (isolated from the mid-turn TAU2_GATE).
++        """
++        if os.getenv("TAU2_GATE_TERM") != "1":
++            return
++        if getattr(self, "solo_mode", False):
++            return
++        if self.termination_reason != TerminationReason.USER_STOP:
++            return
++        traj = self.trajectory
++
++        def _is_write(tc) -> bool:
++            try:
++                return bool(self.environment._is_mutating_tool(tc.name))
++            except Exception:
++                return False
++
++        if os.getenv("TAU2_GATE_TERM_WM") == "1":
++            # v6 WM-gate: consult the agent's OWN Recuris working-memory intent ledger
++            # (the agent.wm_pending_lines). Fires iff the ledger shows confirmed-but-
++            # unexecuted requests at USER_STOP. Non-cheating: the nudge only echoes the
++            # agent's own extraction back; executed-status was harness-verified.
++            pending_fn = getattr(self.agent, "wm_pending_lines", None)
++            if pending_fn is None:
++                return  # agent has no WM; the WM-gate is a no-op for other agents
++            try:
++                pending_lines = pending_fn(getattr(self, "agent_state", None)) or []
++            except Exception as e:
++                logger.warning(f"[skill_gate_term_wm] WM read failed: {e}")
++                return
++            if not pending_lines:
++                return
++            logger.info(
++                f"[skill_gate_term_wm] USER_STOP with {len(pending_lines)} pending ledger "
++                "entries -> forcing terminal action"
++            )
++            nudge = UserMessage(
++                role="user",
++                content=(
++                    "[SYSTEM CHECK - not from the customer] The conversation is ending, but your "
++                    "working-memory ledger still lists confirmed request(s) that have NOT been "
++                    "executed:\n"
++                    + "\n".join(pending_lines)
++                    + "\nA confirmation reply is not the action itself. Execute the pending "
++                    "request(s) now with the parameters already established. Do NOT re-execute "
++                    "anything already done, and do NOT transfer to a human agent. Respond with "
++                    "the required write tool call(s)."
++                ),
++            )
++            nudge.timestamp = get_now()
++            self.trajectory.append(nudge)
++            msg: Message = nudge
++            for _ in range(self._TERM_MAX_FORCED_ROUNDS):
++                agent_msg, self.agent_state = self.agent.generate_next_message(
++                    msg, self.agent_state
++                )
++                agent_msg.timestamp = get_now()
++                self.trajectory.append(agent_msg)
++                if not agent_msg.is_tool_call():
++                    break
++                tool_results = self._execute_tool_calls(agent_msg.tool_calls)
++                for tr in tool_results:
++                    tr.timestamp = get_now()
++                self.trajectory.extend(tool_results)
++                msg = self._wrap_tool_results(tool_results)
++            self.environment.sync_tools()
++            return
++
++        if os.getenv("TAU2_GATE_TERM_V5") == "1":
++            # v5 ledger: fire iff an ACTION-confirm exists AFTER the last executed write (catches both
++            # total no-write and PARTIAL execution), with the nearest preceding agent text presenting/
++            # soliciting the change (precision guard: 2% fire-rate on passing baseline sims).
++            last_w = -1
++            for i, m in enumerate(traj):
++                for tc in getattr(m, "tool_calls", None) or []:
++                    if _is_write(tc):
++                        last_w = i
++            fire = False
++            for i in range(last_w + 1, len(traj)):
++                m = traj[i]
++                if (
++                    isinstance(m, UserMessage)
++                    and m.content
++                    and not m.content.startswith("[SYSTEM CHECK")
++                    and self._TERM_ACTION_CONFIRM_RE.search(m.content)
++                ):
++                    for pm in reversed(traj[:i]):
++                        if (
++                            isinstance(pm, AssistantMessage)
++                            and pm.content
++                            and not getattr(pm, "tool_calls", None)
++                        ):
++                            if self._TERM_PRESENT_RE.search(pm.content):
++                                fire = True
++                            break
++                    if fire:
++                        break
++            if not fire:
++                return
++            logger.info(
++                "[skill_gate_term_v5] USER_STOP with confirmed-unexecuted change after last write -> forcing"
++            )
++            nudge = UserMessage(
++                role="user",
++                content=(
++                    "[SYSTEM CHECK - not from the customer] The customer confirmed a change and then ended "
++                    "the chat, but that change has NOT been executed. A confirmation reply is not the action "
++                    "itself. Review the conversation: execute now ONLY the confirmed change(s) that have not "
++                    "yet been executed, with the exact parameters discussed. Do NOT re-execute anything that "
++                    "already succeeded, and do NOT transfer to a human agent. Respond with the required write "
++                    "tool call(s)."
++                ),
++            )
++            nudge.timestamp = get_now()
++            self.trajectory.append(nudge)
++            msg: Message = nudge
++            for _ in range(self._TERM_MAX_FORCED_ROUNDS):
++                agent_msg, self.agent_state = self.agent.generate_next_message(
++                    msg, self.agent_state
++                )
++                agent_msg.timestamp = get_now()
++                self.trajectory.append(agent_msg)
++                if not agent_msg.is_tool_call():
++                    break
++                tool_results = self._execute_tool_calls(agent_msg.tool_calls)
++                for tr in tool_results:
++                    tr.timestamp = get_now()
++                self.trajectory.extend(tool_results)
++                msg = self._wrap_tool_results(tool_results)
++            self.environment.sync_tools()
++            return
++
++        # (a) a mutating tool already executed -> nothing to flush
++        for m in traj:
++            for tc in getattr(m, "tool_calls", None) or []:
++                if _is_write(tc):
++                    return
++        # (b) a resolved-but-unexecuted change is pending. Two evidences:
++        #   A1: a genuine customer confirmation exists somewhere (exclude our own SYSTEM CHECK nudges).
++        #   A2 (opt-in TAU2_GATE_TERM_A2=1): the agent's most-recent TEXT turn SOLICITED confirmation of a
++        #       specific change (shall I / want me to / please confirm ...) -> the change was resolved and only
++        #       an execution turn is missing, even though no user "yes" regex-matched. A2 is ~11% of retail
++        #       failures and ~57% of those had the agent explicitly asking to proceed.
++        confirmed = any(
++            isinstance(m, UserMessage)
++            and m.content
++            and not m.content.startswith("[SYSTEM CHECK")
++            and self._TERM_CONFIRM_RE.search(m.content)
++            for m in traj
++        )
++        if not confirmed and os.getenv("TAU2_GATE_TERM_A2") == "1":
++            last_txt = None
++            for m in reversed(traj):
++                if (
++                    isinstance(m, AssistantMessage)
++                    and m.content
++                    and not getattr(m, "tool_calls", None)
++                ):
++                    last_txt = m.content
++                    break
++            if last_txt and self._TERM_SOLICIT_RE.search(last_txt):
++                confirmed = True
++        if not confirmed:
++            return
++
++        logger.info(
++            "[skill_gate_term] USER_STOP with confirmed-unexecuted change -> forcing terminal action"
++        )
++        nudge = UserMessage(
++            role="user",
++            content=(
++                "[SYSTEM CHECK - not from the customer] The customer confirmed a change and then ended the "
++                "chat, but no action tool has been executed yet. A confirmation reply is not the action itself. "
++                "Before the session closes, execute the confirmed change now by calling the required write "
++                "tool(s) with the correct arguments. Do NOT transfer to a human agent. Respond with a tool call, "
++                "not a message."
++            ),
++        )
++        nudge.timestamp = get_now()
++        self.trajectory.append(nudge)
++        msg: Message = nudge
++        for _ in range(self._TERM_MAX_FORCED_ROUNDS):
++            agent_msg, self.agent_state = self.agent.generate_next_message(
++                msg, self.agent_state
++            )
++            agent_msg.timestamp = get_now()
++            self.trajectory.append(agent_msg)
++            if not agent_msg.is_tool_call():
++                break  # agent finished / refused with text
++            tool_results = self._execute_tool_calls(agent_msg.tool_calls)
++            for tr in tool_results:
++                tr.timestamp = get_now()
++            self.trajectory.extend(tool_results)
++            msg = self._wrap_tool_results(tool_results)
++        self.environment.sync_tools()
++
+     def run(self) -> SimulationRun:
+         """
+         Run the simulation.
+@@ -279,6 +522,7 @@ class BaseOrchestrator(ABC, Generic[BaseAgentT, BaseUserT, TrajectoryItemT]):
+             while not self.done:
+                 self.step()
+                 self._check_termination()
++            self._maybe_force_terminal_action()
+             result = self._finalize()
+             finalized = True
+             return result
+@@ -838,6 +1082,40 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
+         )
+         # AGENT/ENV -> USER
+         if self.from_role in [Role.AGENT, Role.ENV] and self.to_role == Role.USER:
++            # ── WM STATUS BOARD (TAU2_STATUS_BOARD=1, Iteration 11): append the
++            # HARNESS-rendered ledger progress to the agent's text message, so the
++            # customer sees the verified execution status directly instead of relying
++            # on the agent's (over-eager) prose. Board content = the agent's own
++            # extracted requests + harness-verified status; the agent model cannot
++            # write into the board. Disclosed as a user-channel-level intervention.
++            if (
++                os.getenv("TAU2_STATUS_BOARD") == "1"
++                and self.from_role == Role.AGENT
++                and isinstance(self.message, AssistantMessage)
++                and self.message.content
++            ):
++                board_fn = getattr(self.agent, "wm_board_text", None)
++                if board_fn is not None:
++                    try:
++                        board = board_fn(self.agent_state)
++                    except Exception as e:
++                        logger.warning(f"[status_board] render failed: {e}")
++                        board = None
++                    # SANITIZE FIRST: the model imitates boards it has seen in its own
++                    # history and can FORGE statuses (observed: fake "DONE" before any
++                    # execution — a lie wearing the trusted channel's uniform). Any
++                    # board-marker block in the model's text is stripped; only the
++                    # harness-rendered board may reach the customer.
++                    content = self.message.content
++                    idx = content.find("--- Progress (system-verified)")
++                    if idx != -1:
++                        logger.warning(
++                            "[status_board] stripped model-imitated board block from agent message"
++                        )
++                        content = content[:idx].rstrip()
++                    if board:
++                        content = content + "\n\n" + board
++                    self.message.content = content
+             user_msg, self.user_state = self.user.generate_next_message(
+                 self.message, self.user_state
+             )
+@@ -882,6 +1160,11 @@ class Orchestrator(BaseOrchestrator[AgentT, UserT, Message]):
+         elif self.from_role in [Role.AGENT, Role.USER] and self.to_role == Role.ENV:
+             if not self.message.is_tool_call():
+                 raise ValueError("Agent or User should send tool call to environment")
++            # NOTE: the write-review checkpoint lives AGENT-SIDE (tau2.agent.write_review),
++            # not here — an orchestrator-level bounce leaves an unexecuted mutating call in
++            # the trajectory, which breaks the evaluator's deterministic replay (it re-runs
++            # every mutating call and compares outputs). Agent-side review keeps the
++            # trajectory replay-clean: only the post-review call ever reaches the env.
+             tool_results = self._execute_tool_calls(self.message.tool_calls)
+             assert len(self.message.tool_calls) == len(tool_results), (
+                 "Number of tool calls and tool messages should be the same"

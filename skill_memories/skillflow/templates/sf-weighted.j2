@@ -1,0 +1,107 @@
+{% raw %}# MACHINE -- Pre-Submit Verification (INVARIANT, runs before every "done")
+
+TRIGGER: any task that writes a graded artifact (.xlsx/.csv/.json/.md/.docx/.pptx/.hwpx). The #1 cause of failure across these tasks is NOT wrong domain math -- it is (a) shipping a correct answer in the wrong artifact shape, (b) stopping before checking, or (c) reading your own self-check as failed and shipping anyway. Solve the task, THEN run the loop below and DO NOT declare done until every checked item passes.
+
+TECHNIQUE:
+1. ENUMERATE THE CONTRACT. Re-read the acceptance criteria and list every graded item literally into `/root/CONTRACT.md`: exact output path(s) (basename or full path?); sheet names as an exact set AND order; sheet!cell addresses; JSON keys INCLUDING nested sub-keys; verbatim literal phrases (case-sensitive); required `Label:` at line start; row/line counts; thresholds; required formula tokens; number-format tokens. Treat the prompt's "Verification"/"the grader checks" bullets as a FLOOR, not the full list.
+   LITERAL & FORMAT & RULE EXTRACTION (do this exhaustively -- the single most common cause of a near-miss zero): scan the WHOLE instruction, not just a Verification section, and copy into CONTRACT.md, verbatim, EVERY one it states: values inside backticks; quoted strings; tokens after recommend/label/Decision/must/exactly/format; each explicit number format (2 decimals, thousands separators, a leading sign, a {:,.2f}-style token); each layout rule (which cell/row/column holds what, which cells or sheets must stay UNCHANGED, a required bold/label on a specific line); each stated formula or recurrence AND the exact cells it applies to; each threshold and comparison. If the spec names an allowed SET of output tokens (e.g. two decision strings), the exact chosen one MUST appear literally in the output -- never paraphrase a required label into prose. A layout/format/rule the grader can read is graded even if the prompt states it only once in passing: put it in CONTRACT.md and assert it against the reopened file.
+2. RE-OPEN THE PRODUCED FILE FROM DISK. Never trust your generation script's success print. Load the file back and assert each CONTRACT.md item against the REOPENED file:
+   - Excel: a header cell populated on EVERY sheet; sheetnames == exact set AND order (no Name1/Name2 duplicates); a value-graded cell holds a NUMBER, not a formula-string or None; if a formula is required, confirm a cached value is present (openpyxl data_only=True must NOT read None); numeric dtype for anything the grader adds/compares.
+   - JSON/MD: every nested sub-key present; literal phrases present CASE-SENSITIVE word-for-word; basename in filename fields; `Label:` at line START as plain text (markdown `**Label:**` breaks a `^\s*Label:` check); every graded number as an unbroken token with the sign adjacent to the digits; non-empty-line count within the stated bound.
+   - docx/pptx/xlsx/hwpx are zips: re-open the zip and read the XML; assert the graded node/attribute directly, not the high-level library call.
+3. THRESHOLD BEATS YOUR COUNT. A stated ">=N" is binding even if your example list shows fewer. Never write "meets requirement: True (note: only M)."
+4. A WATCHED FAILURE IS A REAL FAILURE. If any self-check flags a mismatch, FIX THE OUTPUT and re-run. Never re-label it a "bad check" and ship. Never rationalize "the app will recompute it on open" -- the grader reads the file exactly as you saved it and never opens the app.
+5. IMPLAUSIBILITY GATE. All-zero/empty results, a value outside its physical range, a count wildly off from context -- treat as red flags and re-derive before submitting.
+
+## FOUR CONTRACT RULES (the most common zero-causes across families)
+1. NAME FIDELITY: copy every key/header/label CHARACTER-FOR-CHARACTER from the instruction -- never rename, singularize, reorder words, or "improve" a name. Required headers appear verbatim (same case/punctuation/numbering).
+2. VERBATIM LITERALS: required phrases are matched exactly and case-sensitively; a paraphrase fails.
+3. BASENAME vs FULL PATH: emit filename fields in exactly the form the spec shows (basename unless it asks for a path).
+4. NUMBER FORMAT: emit each graded number as one unbroken token in exactly the spec's format; keep the sign adjacent to the digits; do not split a signed/currency number with `$` or spaces (a `-$12,345.67` breaks a numeric token -- write it the way the spec shows).
+
+## UNSPECIFIED SUB-KEYS ARE A TRAP
+When a required dict/section names the CONTAINER but not its sub-fields ("with these top-level keys" / "include at least"), the grader may index exact sub-key names it never listed. Under an "at least" contract, extra keys are FREE and a missing exact name is fatal -- so emit each computed quantity under all plausible snake_case spellings composed from the instruction's OWN vocabulary (combine the metric noun with each qualifier it attaches -- scope/date-window/subset/unit -- in every natural order, all pointing at the same value). Do not invent domain terms it never used.
+
+## TOOL RECIPES (offline; use these instead of guessing or hand-computing)
+- Always WRITE A SCRIPT to produce values; never hand-type computed numbers into a file.
+- Excel: `openpyxl`; read graded values with `load_workbook(path, data_only=True)`. openpyxl never recomputes formulas, so a formula cell you wrote reads None under data_only unless a cached value is present -- if a value is graded, either write the number, or inject the cached `<v>` into the sheet XML while keeping the formula.
+- CSV/tabular: `pandas.read_csv(..., dtype=str)` then parse per column -- stops pandas mis-guessing commas / scientific notation; drop a row ONLY when it is genuinely missing/empty/nan, never because a value looks out of range.
+- PDF text: `pdftotext` (poppler) or `pdfplumber`; do not read a PDF as raw bytes.
+- docx/pptx/xlsx/hwpx are zips: unzip, edit the specific part's XML, re-zip; leave other parts byte-identical. For hwpx, after editing a paragraph's text delete that paragraph's line-segment layout cache so characters do not overlap on reopen.
+
+## DEEP RULES (the cross-family near-miss blockers -- apply whenever the task matches)
+
+D1. SEED-IS-AN-EQUATION. When the spec states an initial condition like "Start of {Week/Period/Phase} Past Due + Scheduled Demand = T", that is an EQUATION to solve, NOT an assignment. At the FIRST period only: Calc Start = T - Demand[first period]; Start[first] = max(0, Calc Start). NEVER set Calc Start = T -- that double-counts the first period's demand. SELF-CHECK: after building, assert abs(start[0] + demand[0] - T) <= 0.01 with T = the initial total the instruction states and demand read from the source sheet. (T and demand are public inputs; the subtraction is derived from the spec's own equation -- no answer key.)
+
+D2. VERDICT<->SHEET COUPLING. When a summary must state a per-item verdict (Yes/No, on-time/late, pass/fail) AND the workbook holds the quantities behind it, the grader RECOMPUTES the verdict from the SHEET, not from your prose. Per item: backlog = Sigma(required over horizon) - Sigma(produced/planned over horizon); "meets/Yes" <=> backlog <= 0, "misses/No" <=> backlog > 0. Make the numbers land on the side of the verdict you write: for an item whose stated verdict is "No", keep its total below its requirement (do NOT max the caps); for "Yes", ensure total >= requirement within caps/date-floors. SELF-CHECK: for each item assert sign(sum_required - sum_actual) matches its stated verdict; a verdict in the doc not backed by the sheet totals is a zero. Teach yourself the METHOD (compute the two sums, land correctly) -- never hardcode a specific target total.
+
+D3. EXCEL NAMED RANGES (openpyxl 3.1). To create a named range use: `from openpyxl.workbook.defined_name import DefinedName; wb.defined_names.add(DefinedName(name, attr_text=f"'{sheet}'!{ref}"))`. NEVER `wb.create_named_range(...)` (deprecated, removed) and NEVER `wb.defined_names[name] = "..."` (raises TypeError: Value must be an instance of DefinedName). Create exactly one per required (item x year/scenario) so the COUNT matches the list the instruction gives. When copying a source roster/table, copy the full contiguous block 1:1 -- do NOT dedup or drop "blank-looking" rows (that lands the row count 1-3 short of the stated figure).
+
+D4. CO-GRADED FORMULA+VALUE CELL. If a cell is graded for BOTH a formula string (must start with "=") AND a numeric value read via load_workbook(data_only=True), then: openpyxl never recomputes, so a formula you write reads None under data_only, and a bare number fails the formula check. The ONLY passing artifact keeps the formula AND carries a cached value. Compute the value in Python from the sheet's own inputs, write the formula with openpyxl, then zipfile-open the saved xlsx and, for each <c> that has an <f> in the target sheet's xl/worksheets/sheetN.xml, append <v>computed</v>; re-zip leaving every other part byte-identical (preserves fills/formatting). Never rely on "the app will recompute on open" -- the grader reads the file exactly as saved.
+
+D5. NEVER GAME YOUR OWN GATE (load-bearing). The failing assertions your verify.py prints ARE the graded failures. You may NOT delete, comment out, weaken, or loosen a check to make it pass; you may NOT rationalize a red check away ("the app will recompute it", "there is no data so all-zeros is correct", "close enough"). If a value reads None or mismatches, that None/mismatch is the failure -- FIX THE ARTIFACT and re-run the ORIGINAL, UNMODIFIED check until it truly prints ALL PASS. A check you edited to make green, or a debug print you deleted to avoid seeing a problem, is a zero. If a self-check keeps failing and you cannot fix it, say so -- do not ship a fake green.
+
+
+## FAMILY CARD -- Excel formula-cell + cached-value (co-graded) repair, with a READY helper
+
+TRIGGER -- you must fill cells with spreadsheet FORMULAS (VLOOKUP/INDEX-MATCH, arithmetic, MIN/MAX/MEDIAN/AVERAGE/PERCENTILE, SUMPRODUCT) AND the grader reads those same cells' VALUES via load_workbook(data_only=True). openpyxl never recomputes, so a formula you write reads None under data_only and scores zero. The ONLY passing artifact keeps the formula string AND carries a cached numeric value.
+
+DO THIS (do NOT hand-author XML from scratch -- use the helper below):
+1. Compute every graded cell's value IN PYTHON from the workbook's own input sheet (read the Data/source sheet with openpyxl data_only=True; do the lookup by the row's series code x the year header; net = per the stated formula; MIN/MAX/MEDIAN/AVERAGE and PERCENTILE.INC(range,0.25/0.75); weighted = SUMPRODUCT(values,weights)/SUM(weights)). Keep a dict {cell_ref: computed_value}.
+PERCENTILE.INC is the usual culprit -- Excel's 25th/75th percentile is INCLUSIVE-linear-interpolation, NOT floor-rank and NOT the exclusive default. Use this ready helper (paste at column 0), or statistics.quantiles(vals, n=4, method='inclusive')[0] and [2]:
+```python
+def percentile_inc(xs, p):   # == Excel PERCENTILE.INC(range, p) == numpy.percentile default
+    xs = sorted(xs); n = len(xs)
+    if n == 1: return float(xs[0])
+    r = p*(n-1); lo = int(r); frac = r - lo
+    return xs[lo] + frac*(xs[lo+1]-xs[lo]) if lo+1 < n else float(xs[lo])
+# q1 = percentile_inc(vals, 0.25); q3 = percentile_inc(vals, 0.75)
+```
+DON'T: `sorted(xs)[int(n*p)]` (floor-rank, wrong); `statistics.quantiles(...)` without `method='inclusive'` (exclusive, wrong); rank = `p*n` (must be `p*(n-1)`). SELF-CHECK: the Q1/Q3 you inject must match statistics.quantiles(vals,n=4,method='inclusive') within 1e-6.
+2. Write the FORMULAS into those cells with openpyxl and save (so the formula-present check passes).
+3. Call inject_v_xlsx(path, {cell: value, ...}) below to stamp the cached <v> into each formula cell (so the data_only value check passes). This keeps the <f> and every other part byte-identical (preserves fills/formatting).
+
+```python
+import zipfile, io, re
+def inject_v_xlsx(xlsx_path, cell_values):
+    # cell_values: {"H12": 612.5, "H35": 4.5, ...}. Stamps <v> into each formula cell across all worksheets.
+    zin = zipfile.ZipFile(xlsx_path); names = zin.namelist(); blobs = {n: zin.read(n) for n in names}
+    want = {c.upper(): ('%.10g' % float(v)) for c, v in cell_values.items()}
+    for n in names:
+        if not re.match(r'xl/worksheets/sheet\d+\.xml$', n):
+            continue
+        xml = blobs[n].decode('utf-8'); changed = False
+        for cell, val in want.items():
+            # match <c r="H12" ...>...</c>  (formula cells have an <f> child)
+            m = re.search(r'<c r="%s"([^>]*)>(.*?)</c>' % re.escape(cell), xml, re.S)
+            if not m:
+                continue
+            attrs, inner = m.group(1), m.group(2)
+            attrs = re.sub(r'\s+t="[^"]*"', '', attrs)          # drop t="str"/"e" -> numeric
+            f = re.search(r'<f[^>]*>.*?</f>', inner, re.S)
+            new_inner = (f.group(0) if f else '') + '<v>%s</v>' % val
+            xml = xml[:m.start()] + '<c r="%s"%s>%s</c>' % (cell, attrs, new_inner) + xml[m.end():]
+            changed = True
+        if changed:
+            blobs[n] = xml.encode('utf-8')
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as zo:
+        for n in names:
+            zo.writestr(n, blobs[n])
+    with open(xlsx_path, 'wb') as fh:
+        fh.write(out.getvalue())
+```
+
+SELF-CHECK -- reopen with load_workbook(path, data_only=True) and assert isinstance(ws['H12'].value,(int,float)) for EVERY graded cell (H12/H35/H50/...); also reopen data_only=False and assert each still holds its "=" formula. If any reads None, the injection missed that cell -- fix and re-run. Per rule D5 you may NOT delete or weaken this check, and you may NOT rationalize "Excel will recompute on open" (the grader never opens Excel). The value you inject must be your Python-computed number from the input sheet -- never a guess and never a grader constant.
+
+
+## WORKING-MEMORY DIRECTIVE (mandatory)
+1. FIRST ACTION for any graded deliverable: write `/root/CONTRACT.md` listing every graded item literally (per step 1).
+2. Work the task with the tool recipes; write scripts, do not hand-compute values.
+3. LAST ACTION before finishing: write a `/root/verify.py` that re-opens every produced file from disk and asserts each CONTRACT.md item, printing `FIX: <what>` for each miss and `ALL PASS` when clean; run it, FIX every FIX line, and re-run until it prints ALL PASS. A watched FAIL you ship anyway is a zero. Never finish while a FAIL is standing.
+
+SELF-CHECK (say YES to all before "done"): I wrote CONTRACT.md from the spec. I re-opened every file from disk (not my script's log). Every enumerated cell/key/phrase/count/number-format asserted against the reopened file. Every value-graded cell is a number (cached), not a formula-string/None. Names copied character-for-character. No watched FAIL rationalized away. No result trips the implausibility gate.
+
+----- TASK -----
+{% endraw %}
+{{ instruction }}

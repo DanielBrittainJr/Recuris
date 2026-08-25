@@ -1,0 +1,9 @@
+extends: _base/tau2
+description: >-
+  tau2 retail, stock agent, no Skill Memory. The control half of the retail
+  pair; it must differ from retail_skill only in agent and skill_memory.
+domain: retail
+arm: bare
+agent: llm_agent
+skill_memory: null
+split: splits/tau2/retail_from0_v1_k4.json

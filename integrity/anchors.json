@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "comment": "Aggregate digest of the protected Skill Memory packages. Regenerate with scripts/reanchor_integrity.py.",
+  "packages": {
+    "skill_memories/skillflow": 52,
+    "skill_memories/tau2_airline": 12,
+    "skill_memories/tau2_retail": 11,
+    "skill_memories/tb21_seed": 3
+  },
+  "tree_sha256": "afea57d670a22cfee95c15b8d580bc0835de805c76f10c5de423a8345ca13193"
+}

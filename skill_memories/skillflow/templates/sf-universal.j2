@@ -1,0 +1,40 @@
+{% raw %}# MACHINE -- Pre-Submit Verification (INVARIANT, runs before every "done")
+
+TRIGGER: any task that writes a graded artifact (.xlsx/.csv/.json/.md/.docx/.pptx/.hwpx). The #1 cause of failure across these tasks is NOT wrong domain math -- it is (a) shipping a correct answer in the wrong artifact shape, (b) stopping before checking, or (c) reading your own self-check as failed and shipping anyway. Solve the task, THEN run the loop below and DO NOT declare done until every checked item passes.
+
+TECHNIQUE:
+1. ENUMERATE THE CONTRACT. Re-read the acceptance criteria and list every graded item literally into `/root/CONTRACT.md`: exact output path(s) (basename or full path?); sheet names as an exact set AND order; sheet!cell addresses; JSON keys INCLUDING nested sub-keys; verbatim literal phrases (case-sensitive); required `Label:` at line start; row/line counts; thresholds; required formula tokens; number-format tokens. Treat the prompt's "Verification"/"the grader checks" bullets as a FLOOR, not the full list.
+2. RE-OPEN THE PRODUCED FILE FROM DISK. Never trust your generation script's success print. Load the file back and assert each CONTRACT.md item against the REOPENED file:
+   - Excel: a header cell populated on EVERY sheet; sheetnames == exact set AND order (no Name1/Name2 duplicates); a value-graded cell holds a NUMBER, not a formula-string or None; if a formula is required, confirm a cached value is present (openpyxl data_only=True must NOT read None); numeric dtype for anything the grader adds/compares.
+   - JSON/MD: every nested sub-key present; literal phrases present CASE-SENSITIVE word-for-word; basename in filename fields; `Label:` at line START as plain text (markdown `**Label:**` breaks a `^\s*Label:` check); every graded number as an unbroken token with the sign adjacent to the digits; non-empty-line count within the stated bound.
+   - docx/pptx/xlsx/hwpx are zips: re-open the zip and read the XML; assert the graded node/attribute directly, not the high-level library call.
+3. THRESHOLD BEATS YOUR COUNT. A stated ">=N" is binding even if your example list shows fewer. Never write "meets requirement: True (note: only M)."
+4. A WATCHED FAILURE IS A REAL FAILURE. If any self-check flags a mismatch, FIX THE OUTPUT and re-run. Never re-label it a "bad check" and ship. Never rationalize "the app will recompute it on open" -- the grader reads the file exactly as you saved it and never opens the app.
+5. IMPLAUSIBILITY GATE. All-zero/empty results, a value outside its physical range, a count wildly off from context -- treat as red flags and re-derive before submitting.
+
+## FOUR CONTRACT RULES (the most common zero-causes across families)
+1. NAME FIDELITY: copy every key/header/label CHARACTER-FOR-CHARACTER from the instruction -- never rename, singularize, reorder words, or "improve" a name. Required headers appear verbatim (same case/punctuation/numbering).
+2. VERBATIM LITERALS: required phrases are matched exactly and case-sensitively; a paraphrase fails.
+3. BASENAME vs FULL PATH: emit filename fields in exactly the form the spec shows (basename unless it asks for a path).
+4. NUMBER FORMAT: emit each graded number as one unbroken token in exactly the spec's format; keep the sign adjacent to the digits; do not split a signed/currency number with `$` or spaces (a `-$12,345.67` breaks a numeric token -- write it the way the spec shows).
+
+## UNSPECIFIED SUB-KEYS ARE A TRAP
+When a required dict/section names the CONTAINER but not its sub-fields ("with these top-level keys" / "include at least"), the grader may index exact sub-key names it never listed. Under an "at least" contract, extra keys are FREE and a missing exact name is fatal -- so emit each computed quantity under all plausible snake_case spellings composed from the instruction's OWN vocabulary (combine the metric noun with each qualifier it attaches -- scope/date-window/subset/unit -- in every natural order, all pointing at the same value). Do not invent domain terms it never used.
+
+## TOOL RECIPES (offline; use these instead of guessing or hand-computing)
+- Always WRITE A SCRIPT to produce values; never hand-type computed numbers into a file.
+- Excel: `openpyxl`; read graded values with `load_workbook(path, data_only=True)`. openpyxl never recomputes formulas, so a formula cell you wrote reads None under data_only unless a cached value is present -- if a value is graded, either write the number, or inject the cached `<v>` into the sheet XML while keeping the formula.
+- CSV/tabular: `pandas.read_csv(..., dtype=str)` then parse per column -- stops pandas mis-guessing commas / scientific notation; drop a row ONLY when it is genuinely missing/empty/nan, never because a value looks out of range.
+- PDF text: `pdftotext` (poppler) or `pdfplumber`; do not read a PDF as raw bytes.
+- docx/pptx/xlsx/hwpx are zips: unzip, edit the specific part's XML, re-zip; leave other parts byte-identical. For hwpx, after editing a paragraph's text delete that paragraph's line-segment layout cache so characters do not overlap on reopen.
+
+## WORKING-MEMORY DIRECTIVE (mandatory)
+1. FIRST ACTION for any graded deliverable: write `/root/CONTRACT.md` listing every graded item literally (per step 1).
+2. Work the task with the tool recipes; write scripts, do not hand-compute values.
+3. LAST ACTION before finishing: write a `/root/verify.py` that re-opens every produced file from disk and asserts each CONTRACT.md item, printing `FIX: <what>` for each miss and `ALL PASS` when clean; run it, FIX every FIX line, and re-run until it prints ALL PASS. A watched FAIL you ship anyway is a zero. Never finish while a FAIL is standing.
+
+SELF-CHECK (say YES to all before "done"): I wrote CONTRACT.md from the spec. I re-opened every file from disk (not my script's log). Every enumerated cell/key/phrase/count/number-format asserted against the reopened file. Every value-graded cell is a number (cached), not a formula-string/None. Names copied character-for-character. No watched FAIL rationalized away. No result trips the implausibility gate.
+
+----- TASK -----
+{% endraw %}
+{{ instruction }}

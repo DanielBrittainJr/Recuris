@@ -1,0 +1,32 @@
+# tau2_retail_v3 — 挑战者:授权列 + 状态驱动双提醒 + 状态板 + 门只认已授权
+name: tau2_retail_v3
+
+wm:
+  entry_kind: service_request_auth     # v3:确认列(引文核验)
+  manager: self_maintain_each_turn
+  schema:
+    binding_key: order_id
+    collection_key: item_ids
+    max_entries: 8
+    machine_id_pattern: ".*_ids?"
+    board_marker: "--- Progress (system-verified)"
+
+grounding:
+  matcher: receipt_binding_match
+
+delivery:
+  - use: exemplar_bounce
+    cfg: {em_type: action_result, refusal_branch: true}
+  - use: state_reminder                # WM 状态驱动双提醒(前任 2026-07-05 提案)
+
+checkers:
+  - use: truth_protocol                # 保留(增量可归因;退役由 A/B 决定)
+    cfg: {level: full}
+
+board:
+  status_board: true                   # user 侧提醒 = Iter11 板(四臂验证过的稳健杠杆)
+  stay_notice: true                    # 页脚"确认≠完成,请留线等执行结果"(termtrap 缓解)
+  notice_in_wm: always
+
+gate:
+  lines: all_pending                   # retail 主病=没办,门保持全量抢救;authorized_only 留给 airline(越权疫苗)

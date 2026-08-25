@@ -1,0 +1,14 @@
+description: >-
+  Test-time adaptation: after each failure the meta-agent writes a card into a
+  per-task archive that the next attempt carries.
+benchmark: tb21
+arm: tta
+skill_memory: tb21_seed
+max_concurrency: 3
+split: splits/tb21/tta_taskset_v3.json
+notes: >-
+  Round 1 of m0 and tta are identical by construction, so a finished m0 run can
+  seed tta's first round with --seed-round-from. The information contract is
+  enforced in code: the meta-agent sees the instruction, the failed
+  trajectory, and one bit. Never the verifier, the tests, or any other
+  attempt's reward.

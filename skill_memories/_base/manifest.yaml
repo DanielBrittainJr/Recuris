@@ -1,0 +1,27 @@
+# _base — the engine-native starting package: a generic working memory plus
+# self-directed retrieval over experiential cards. Usable as-is.
+#
+# If a new task only needs "reasoning over cards the agent retrieves for
+# itself", copy this package, fill in em/, and you are done: no code.
+name: _base
+
+wm:
+  entry_kind: generic_item             # generic entry: description only
+  manager: self_maintain_each_turn
+  schema:
+    max_entries: 8
+
+grounding:
+  matcher: delivery_receipt            # a delivery receipt marks an entry covered
+
+delivery:
+  - use: need_driven_retrieval         # gaps in WM drive queries; a hit is
+                                       # delivered and recorded
+    cfg: {em_types: [knowledge, procedure], top_k: 1, min_overlap: 2}
+
+checkers: []                           # no domain to ground against, so nothing
+                                       # is hard-blocked (graceful degradation)
+
+board:
+  status_board: false
+  notice_in_wm: never
