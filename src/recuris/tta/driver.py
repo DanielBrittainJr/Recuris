@@ -630,7 +630,17 @@ def main() -> None:
     log(f"DONE arm={args.arm} solved-within-{args.rounds} = {len(passed)}/{len(attempted)} attempted "
         f"({summary['n_unattempted']} unattempted) by_round={summary['by_round']} "
         f"leak_flagged={len(summary['leak_flagged'])}"
-        + ("  [INFRASTRUCTURE DOWN — arm incomplete]" if _infra_down() else ""))
+        + ("  [INFRASTRUCTURE DOWN, run incomplete]" if _infra_down() else ""))
+
+    # Nothing attempted is not a score of zero, it is an absent run. Exiting 0
+    # here reports "0/0 solved" as though it were a measurement, and the first
+    # thing it hides is a missing runner: harbor absent makes every task fail to
+    # start and the summary still reads like a completed sweep.
+    if records and not attempted:
+        errors = sorted({str(r.get("error")) for r in records if r.get("error")})
+        log(f"no task was attempted; this run measured nothing. "
+            f"{('First error: ' + errors[0]) if errors else ''}")
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

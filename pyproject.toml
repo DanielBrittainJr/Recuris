@@ -42,13 +42,17 @@ metaagent = [
   "fastapi>=0.110",
   "uvicorn>=0.29",
 ]
-# SkillFlow arms, driven through harbor.
+# SkillFlow arms. harbor is the runner that executes the containerised
+# tasks; third_party/harbor/harbor-0.20.0-docker.patch targets this exact
+# version, and it is the one the reported numbers were produced with.
 skillflow = [
   "jinja2>=3.1",
+  "harbor==0.20.0",
 ]
-# Terminal-Bench 2.1 test-time adaptation.
+# Terminal-Bench 2.1 test-time adaptation, also run through harbor.
 tb21 = [
   "jinja2>=3.1",
+  "harbor==0.20.0",
 ]
 dev = [
   "ruff>=0.6",
