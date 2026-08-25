@@ -33,33 +33,33 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 
 ## 💡 Introduction
 
-An agent that fails a task the same way twice has a **memory** problem, not a
-capability problem. **Recuris** separates the two: a **frozen machine** that
-never changes between arms, and an **evolved memory** `M = (E, W, ρ, C)` that
-does. A meta-agent proposes changes to the memory; a deterministic gate decides
-whether they are kept, using paired held-out evidence and nothing else.
+**Recuris** is a recursive self-improvement framework that **improves a
+long-horizon agent by evolving its memory rather than its weights or its
+prompt**. A frozen agent is paired with a **Skill Memory** `M = (E, W, ρ, C)`;
+a meta-agent reads structured execution traces, localises each failure to one
+component of that memory, and patches only that component — and a deterministic
+validation gate decides on paired held-out evidence whether the patch survives.
+Recuris has the following key features:
 
-That split is physical in this repository. `src/recuris/` is the machine.
-`skill_memories/` is the memory, and it is **the only thing that differs**
-between a bare arm and a skill arm.
+- **State-grounded memory use** — working memory drives skill invocation, so
+  retrieval is conditioned on verified task state instead of a chat history that
+  grows until the state is buried.
+- **Targeted memory evolution** — structured trajectories `(w_t, E_t, a_t, o_t)`
+  attribute a failure to a specific component, instead of nudging a monolithic
+  prompt from outcomes alone.
+- **Bounded by a validation gate** — candidates are admitted by paired held-out
+  arithmetic and nothing else. No model votes on its own patch, so a round that
+  accepts nothing is a valid outcome.
+- **Training-free and model-agnostic** — the downstream agent stays frozen, and
+  a memory evolved on one model transfers to others unchanged.
+
+Overall, Recuris delivers **higher task success**, **larger gains as the horizon
+grows**, and **substantially fewer long-horizon failures**, across both frontier
+and open-weight agents.
 
 <p align="center">
   <img src="assets/motivation.png" width="1000">
 </p>
-
-Prior memory-based harnesses use memory **statically** — retrieval competes with
-a chat history that grows until the task state is buried — and evolve it from
-**outcomes only**, which says a trajectory failed but not *which part of memory*
-was responsible. Recuris changes both ends:
-
-- **Working Memory drives invocation.** `W` tracks what the task still needs and
-  selects from Experiential Memory on that basis, so skill retrieval is grounded
-  in verified current state rather than in a growing transcript.
-- **Evolution reads structured trajectories.** Each episode leaves
-  `(w_t, E_t, a_t, o_t)`, which lets a failure be attributed to one component and
-  patched *there* — instead of nudging a monolithic prompt and hoping.
-- **A gate, not a judge, decides.** Candidates are admitted only on paired
-  held-out evidence. Nothing in `gates.py` consults a model.
 
 > Across four long-horizon benchmarks and ten models, Recuris improves task
 > success in **35 of 37** completed model–benchmark pairs, adding **+17.8** to
@@ -187,29 +187,241 @@ error.
 
 ## 🚀 Quick Start
 
-Fetch τ²-Bench, then run a paired comparison:
+There are two things to do with this repository, and they are different jobs:
+
+| | |
+|---|---|
+| **[Part 1 — Inference](#part1)** | take a Skill Memory we already evolved, load it into a frozen agent, and measure what it buys |
+| **[Part 2 — Recursive Self-Improvement](#part2)** | evolve a *new* Skill Memory for your own model, one gated round at a time |
+
+Every example below is a **pair**: a skill arm and a bare control that differ in
+the flags shown and in nothing else. Run both, or the number means nothing.
+[Running Experiments](#-running-experiments) has the full flag reference, the
+costs, and the caveats.
+
+---
+
+<a name="part1"></a>
+
+### Part 1 — Inference with a provided Skill Memory
+
+<br/>
+
+#### 1a. Open-weight on τ²-Bench — Qwen3.6-27B
+
+Serve the model on any OpenAI-compatible endpoint, then unfreeze **only** the
+downstream agent — the user simulator and the assertion judge stay pinned, which
+is what keeps the comparison single-variable:
 
 ```bash
-bash third_party/tau2/setup.sh
-uv pip install -e external/tau2-bench
-recuris check-data --benchmark tau2
+bash third_party/tau2/setup.sh && uv pip install -e external/tau2-bench
+
+vllm serve Qwen/Qwen3.6-27B --port 8000 --served-model-name qwen3.6-27b
 ```
 
 ```bash
+export TAU2_GATE_TERM=1 TAU2_GATE_TERM_WM=1 TAU2_STATUS_BOARD=1
+
+export SERVED=openai/qwen3.6-27b
+export ARGS='{"api_base":"http://127.0.0.1:8000/v1","api_key":"dummy","temperature":0.0,"timeout":360,"num_retries":2,"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}'
+
 # skill arm
 recuris tau2 --domain retail --agent recuris_agent --skill-memory tau2_retail \
-    --num-trials 4 --max-concurrency 4 --save-to retail_skill
+    --open-downstream --agent-llm "$SERVED" --agent-llm-args "$ARGS" \
+    --num-trials 4 --max-concurrency 4 --save-to retail_qwen27b_skill
 
-# bare control — the same command, two flags different
+# bare control — same endpoint, same decoding, no memory
 recuris tau2 --domain retail --agent llm_agent \
-    --num-trials 4 --max-concurrency 4 --save-to retail_bare
+    --open-downstream --agent-llm "$SERVED" --agent-llm-args "$ARGS" \
+    --num-trials 4 --max-concurrency 4 --save-to retail_qwen27b_bare
 
-recuris compare --a retail_skill --b retail_bare
+recuris compare --a retail_qwen27b_skill --b retail_qwen27b_bare
 ```
 
-The two commands differ in `--agent` and `--skill-memory`, and **in nothing
-else**. That is the design: the machine is identical, the memory is the
-variable.
+Airline is the same with `--domain airline --skill-memory tau2_airline`.
+
+`--agent-llm-args` must be **byte-identical between the two arms**. It is
+validated rather than merged, so a misspelled key is an error instead of a
+silent drop — setting it once in a shell variable is the reliable way. The
+`enable_thinking: false` in `extra_body` is Qwen-specific; drop it for a server
+that does not take it.
+
+#### 1b. A small open-weight model — Qwen3.6-4B
+
+Identical, with a different served model:
+
+```bash
+vllm serve Qwen/Qwen3.6-4B --port 8000 --served-model-name qwen3.6-4b
+
+export SERVED=openai/qwen3.6-4b
+# ... same $ARGS, same two commands, --save-to retail_qwen4b_{skill,bare}
+```
+
+Worth calibrating expectations at this size. In our measurements a ~3–4B agent
+still gains on τ²-Retail — Granite-4.1-3B goes 9.7 → 23.0 (**+13.4**) — but on
+SkillFlow the same class of model scores near zero in **both** arms, which is a
+capability wall, not a memory effect. A Skill Memory can only recover failures
+the model is otherwise capable of avoiding. Always read the bare arm first: if
+it is at the floor, the pair has nothing to say.
+
+#### 1c. Open-weight on SkillFlow — Qwen3.6-27B
+
+```bash
+uv sync --extra skillflow && pip install huggingface_hub
+bash third_party/skillflow/setup.sh
+./external/SkillFlow/docker/harbor-cli-base/build.sh
+python external/SkillFlow/utils/prebuild_task_images.py \
+    --tasks-root external/SkillFlow/test_tasks
+```
+
+```bash
+export SERVED=openai/qwen3.6-27b
+export SERVED_BASE=http://127.0.0.1:8000/v1
+
+recuris skillflow render-configs --arm bare \
+    --model "$SERVED" --base-url "$SERVED_BASE" \
+    --out configs/skillflow/generated
+
+recuris skillflow render-configs --arm skill --routing default \
+    --model "$SERVED" --base-url "$SERVED_BASE" \
+    --skill-memory skillflow --out configs/skillflow/generated
+
+# one job at a time -- concurrent harbor jobs exhaust the Docker IPv4 pool
+for cfg in configs/skillflow/generated/bare_*.yaml;  do harbor run -c "$cfg" --yes; done
+for cfg in configs/skillflow/generated/skill_*.yaml; do harbor run -c "$cfg" --yes; done
+
+recuris skillflow score --bare jobs/bare --skill jobs/skill
+```
+
+Use `--routing default` for any model. `--routing frozen_insample` additionally
+applies six per-family overrides that were chosen by reading those families' own
+scores; it reproduces our reported arm, and it is in-sample.
+
+#### 1d. Frontier models on τ²-Bench — GPT / Claude
+
+Same shape, pointed at a provider endpoint. Frontier arms in the paper ran with
+the three treatment switches **off**:
+
+```bash
+unset TAU2_GATE_TERM TAU2_GATE_TERM_WM TAU2_STATUS_BOARD
+
+export ARGS='{"api_base":"'"$OPENAI_BASE_URL"'","api_key":"'"$OPENAI_API_KEY"'","temperature":0.0,"timeout":360,"num_retries":2,"reasoning_effort":"high","allowed_openai_params":["reasoning_effort"]}'
+
+export MODEL=openai/<provider-model>
+
+recuris tau2 --domain retail --agent recuris_agent --skill-memory tau2_retail \
+    --open-downstream --agent-llm "$MODEL" --agent-llm-args "$ARGS" \
+    --num-trials 4 --max-concurrency 4 --save-to retail_frontier_skill
+
+recuris tau2 --domain retail --agent llm_agent \
+    --open-downstream --agent-llm "$MODEL" --agent-llm-args "$ARGS" \
+    --num-trials 4 --max-concurrency 4 --save-to retail_frontier_bare
+
+recuris compare --a retail_frontier_skill --b retail_frontier_bare
+```
+
+Replace `<provider-model>` with the provider's id for GPT or Claude as your
+gateway spells it. Anything the provider requires goes in `$ARGS` and must be
+named — unknown keys are rejected, not dropped.
+
+---
+
+<a name="part2"></a>
+
+### Part 2 — Recursive Self-Improvement: evolve a Skill Memory
+
+This is the loop the paper is about. A meta-agent (**upstream**) reads failed
+trajectories from the agent being improved (**downstream**), patches one memory
+component, and a gate admits the patch only on paired held-out evidence.
+
+```bash
+uv sync --extra metaagent
+npm install -g @anthropic-ai/claude-code
+```
+
+```bash
+RECURIS_META_MODEL=...        # the upstream meta-agent's model
+RECURIS_META_BASE_URL=...
+RECURIS_META_API_KEY=...
+```
+
+```bash
+# fails on the plumbing before you spend benchmark budget: one scoped
+# session, zero simulations
+recuris metaagent qualify --run-id qsmoke --proxy-port 4047
+```
+
+<br/>
+
+#### 2a. τ²-Bench with Doubao upstream and downstream
+
+The reported configuration. `--worker-model` is the downstream agent being
+improved, `--meta-model` is the upstream meta-agent, and `--simulator-model` is
+the τ² user simulator, which stays frozen in every arm:
+
+```bash
+recuris metaagent run --domain retail --run-id retail_doubao_v1 \
+    --splits splits/tau2/retail_from0_v1_k4.json \
+    --rounds 4 --k 4 --arm autonomous --base neutral \
+    --meta-model doubao-seed-2-1-pro-260628 \
+    --worker-model doubao-seed-2-0-pro-260215 \
+    --simulator-model doubao-seed-2-0-pro-260215 \
+    --round-gate progressive --power-gate warn --reg-cap 1 \
+    --meta-workflow hierarchical --diagnosis-workers 3 \
+    --max-concurrency 6 --max-sims 1400 --proxy-port 4047
+```
+
+Those three model flags are the defaults, so they can be omitted; they are
+spelled out here because which model plays which role is the thing readers most
+often get backwards. `--base neutral` starts from a deterministic seed package,
+so no hand-written domain profile enters the loop.
+
+<a name="part2b"></a>
+
+#### 2b. τ²-Retail with an open-weight downstream — GPT-OSS-20B
+
+Same upstream, different agent being improved. `--open-worker` unfreezes the
+downstream only; the simulator stays on the reference model, so rounds stay
+comparable to each other and to every arm in Part 1:
+
+```bash
+vllm serve openai/gpt-oss-20b --port 8000 --served-model-name gpt-oss-20b
+```
+
+```bash
+recuris metaagent run --domain retail --run-id retail_gptoss_v1 \
+    --splits splits/tau2/retail_from0_v1_k4.json \
+    --rounds 4 --k 4 --arm autonomous --base neutral \
+    --meta-model doubao-seed-2-1-pro-260628 \
+    --open-worker --worker-model openai/gpt-oss-20b \
+    --worker-llm-args '{"api_base":"http://127.0.0.1:8000/v1","api_key":"dummy","temperature":0.0,"timeout":360,"num_retries":2,"stop_token_ids":[200002,200012]}' \
+    --simulator-model doubao-seed-2-0-pro-260215 \
+    --round-gate progressive --power-gate warn --reg-cap 1 \
+    --meta-workflow hierarchical --diagnosis-workers 3 \
+    --max-concurrency 6 --max-sims 1400 --proxy-port 4047
+```
+
+`--worker-llm-args` takes `api_base`, `temperature` (0.0), `timeout` (360) and
+`num_retries` (2) as required keys, plus optional `api_key`, `extra_body`,
+`stop_token_ids`, `max_tokens`, `reasoning_effort` and `allowed_openai_params`.
+It is checked by the same validator the standalone `--open-downstream` arm uses,
+so a campaign arm and a hand-launched arm are admitted on identical terms. The
+`stop_token_ids` above are GPT-OSS's harmony stop tokens: without them vLLM does
+not end the turn on a tool call, and the agent looks incapable when it is only
+mis-served.
+
+Evolving *for* a specific downstream is worth doing rather than reusing a
+package evolved elsewhere. On GPT-OSS-20B a rebuilt package gained **+10.2**
+where the general-purpose package transferred *negatively*.
+
+> 💸 **Cost.** A campaign is days of wall-clock and thousands of model calls —
+> our retail campaign at k=4 spent roughly eleven hours on the first two rounds
+> alone. Start with `qualify`, then a 1-round run, before committing budget.
+
+Each round leaves a complete record: the evidence the session was given, the
+plan it produced, the lint and probe verdicts, the gate arithmetic, and the
+ledger entry. **A round that accepts nothing is a result** — the gate rejecting
+everything is the gate working.
 
 ## 🧪 Running Experiments
 
@@ -414,6 +626,12 @@ Airline is the same with
 domain profile enters the loop. The split file states its own selection rule,
 including which tasks were excluded and why, which is the only credible evidence
 the held-out set was fixed in advance.
+
+To evolve a memory *for* an open-weight downstream, add `--open-worker` with
+`--worker-model openai/<served-name>` and `--worker-llm-args`; see
+[Part 2b](#part2b). The
+upstream meta-agent and the user simulator stay where they are — only the agent
+being improved moves.
 
 Each round leaves a complete record under the run directory: the evidence the
 session was given, the plan it produced, the lint and probe verdicts, the gate
