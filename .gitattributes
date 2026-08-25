@@ -13,6 +13,7 @@
 # Shipped artefacts are committed exactly as evaluated.
 skill_memories/** -text
 
+assets/** binary
 *.png binary
 *.jpg binary
 *.pdf binary
