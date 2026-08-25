@@ -34,10 +34,6 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 
 ## 💡 Introduction
 
-<p align="center">
-  <img src="assets/motivation.png" width="1000">
-</p>
-
 **Recuris** is a recursive self-improvement framework that **improves a
 long-horizon agent by evolving its memory instead of its weights or its
 prompt**. A frozen agent is paired with a **Skill Memory** `M = (E, W, ρ, C)`.
@@ -60,6 +56,10 @@ survives. Recuris has the following key features:
 Overall, Recuris achieves **higher task success**, **larger gains on longer
 horizons**, and **substantially fewer long-horizon failures**, on both frontier
 and open-source agents.
+
+<p align="center">
+  <img src="assets/motivation.png" width="1000">
+</p>
 
 ## 🔔 News
 
