@@ -198,7 +198,9 @@ and the frozen evaluation splits.
 
 ### 📦 Install Packages
 
-Python 3.12 and `git`. SkillFlow and Terminal-Bench 2.1 also need Docker.
+Python 3.12 and `git`. SkillFlow and Terminal-Bench 2.1 also need Docker
+with the Compose V2 plugin (`docker compose version` must work; harbor
+shells out to it for every task).
 
 ```bash
 git clone https://github.com/Gen-Verse/Recuris.git recuris
@@ -235,6 +237,10 @@ bash third_party/tau2/setup.sh
 uv pip install -e external/tau2-bench
 recuris check-data --benchmark tau2
 ```
+
+Install tau2 after `uv sync`, not before: `uv sync` resolves the environment to
+exactly what `pyproject.toml` declares, so running it again removes anything
+added with `uv pip install`.
 
 Serve an open-source model locally. τ²-Bench drives the agent through tool
 calls, so the two tool-calling flags are required, not optional: without them
@@ -294,7 +300,7 @@ recuris compare --a retail_skill --b retail_bare
 Set up the benchmark and build the task images once:
 
 ```bash
-uv sync --extra skillflow && pip install huggingface_hub
+pip install huggingface_hub
 bash third_party/skillflow/setup.sh
 
 ./external/SkillFlow/docker/harbor-cli-base/build.sh
@@ -333,7 +339,6 @@ recuris skillflow score --bare jobs/bare --skill jobs/skill
 ### 🔹 **Terminal-Bench 2.1 (test-time adaptation)**
 
 ```bash
-uv sync --extra tb21
 bash third_party/tb21/setup.sh
 recuris check-data --benchmark tb21
 ```
@@ -380,7 +385,6 @@ one component of the memory, and a gate admits the patch only on paired held-out
 evidence.
 
 ```bash
-uv sync --extra metaagent
 npm install -g @anthropic-ai/claude-code
 ```
 
