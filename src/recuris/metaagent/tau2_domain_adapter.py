@@ -43,7 +43,7 @@ BARE_LOCATOR_PREFIX = "tau2-bare://"
 def _default_referee(package: Path, domain: str) -> tuple[bool, str]:
     command = [
         sys.executable,
-        str(ROOT / "metaagent" / "ma_lint.py"),
+        str(ROOT / "metaagent" / "lint.py"),
         "--pkg",
         str(package),
         "--domain",

@@ -8483,7 +8483,7 @@ Implement every fix in the plan, then end the session."""
                 plan_correction_used = True
             profile_surface_errors: list[str] = []
             # lint + leak
-            lint = subprocess.run([PY, str(HERE / "ma_lint.py"), "--pkg",
+            lint = subprocess.run([PY, str(HERE / "lint.py"), "--pkg",
                                    str(self.cand_dir.relative_to(ROOT)),
                                    "--domain", self.domain,
                                    "--benchmark", getattr(self, "benchmark", "tau2")],
@@ -8706,7 +8706,7 @@ Implement every fix in the plan, then end the session."""
                                                   list[str], bool]:
             normalize_candidate_name()
             lint = subprocess.run(
-                [PY, str(HERE / "ma_lint.py"), "--pkg",
+                [PY, str(HERE / "lint.py"), "--pkg",
                  str(self.cand_dir.relative_to(ROOT)), "--domain", self.domain,
                  "--benchmark", getattr(self, "benchmark", "tau2")],
                 cwd=str(ROOT), capture_output=True, text=True, timeout=300,
@@ -9769,7 +9769,7 @@ board:
   notice_in_wm: never
 """
         (self.cand_dir / "manifest.yaml").write_text(manifest, encoding="utf-8")
-        lint = subprocess.run([PY, str(HERE / "ma_lint.py"), "--pkg",
+        lint = subprocess.run([PY, str(HERE / "lint.py"), "--pkg",
                                str(self.cand_dir.relative_to(ROOT)), "--domain", self.domain,
                                "--benchmark", getattr(self, "benchmark", "tau2")],
                               cwd=str(ROOT), capture_output=True, text=True, timeout=300)
@@ -10038,7 +10038,7 @@ board:
             raise RuntimeError(f"explicit base package is missing: {source}")
         verify_champions()
         self._prepare_candidate(0, source)
-        lint = subprocess.run([PY, str(HERE / "ma_lint.py"), "--pkg",
+        lint = subprocess.run([PY, str(HERE / "lint.py"), "--pkg",
                                str(self.cand_dir.relative_to(ROOT)), "--domain", self.domain,
                                "--benchmark", getattr(self, "benchmark", "tau2")],
                               cwd=str(ROOT), capture_output=True, text=True, timeout=300)
@@ -10101,7 +10101,7 @@ state invariant. End the session when manifest.yaml is written.
             ok = self.cc_session(f"r0_boot{attempt}", prompt, P_TOOLS,
                                  self.a.cc_timeout, [self.cand_dir],
                                  [rdir / "schema_rules.md", self.cand_dir, policy_path])
-            lint = subprocess.run([PY, str(HERE / "ma_lint.py"), "--pkg",
+            lint = subprocess.run([PY, str(HERE / "lint.py"), "--pkg",
                                    str(cand_rel), "--domain", self.domain,
                                    "--benchmark", getattr(self, "benchmark", "tau2")],
                                   cwd=str(ROOT),
@@ -10757,12 +10757,18 @@ Edit nowhere else. Do not run commands. End after all seven steps."""
         missing = sorted(expected_files - actual_files)
         if extras or missing:
             errors.append(f"qualification file set mismatch; extras={extras}, missing={missing}")
-        lint = subprocess.run([PY, str(HERE / "ma_lint.py"), "--pkg",
+        lint = subprocess.run([PY, str(HERE / "lint.py"), "--pkg",
                                str(candidate.relative_to(ROOT)), "--domain", self.domain,
                                "--benchmark", getattr(self, "benchmark", "tau2")],
                               cwd=str(ROOT), capture_output=True, text=True, timeout=300)
         if lint.returncode != 0:
-            errors.append("qualification candidate failed ma_lint: " + lint.stdout[-1200:])
+            # stdout carries the lint report; stderr carries the reason the
+            # linter never got as far as a report. Reporting only the first is
+            # how a missing interpreter or a renamed module surfaced as
+            # "failed lint:" with nothing after the colon.
+            detail = ((lint.stdout or "").strip() or (lint.stderr or "").strip()
+                      or f"no output, exit status {lint.returncode}")
+            errors.append(f"qualification candidate failed lint: {detail[-1200:]}")
         verify_champions()
         report = {"ok": not errors, "requested_model": self.a.meta_model,
                   "reasoning_effort": self.a.meta_reasoning,

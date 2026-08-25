@@ -106,7 +106,7 @@ def tb21_checker_capabilities() -> dict[str, dict[str, object]]:
     a transfer tool ("transfer_to_human_agents", reachability.py:68-73) that
     does not exist in the TB tool face, so exposing it would let a plan pass
     validation and then route to an unreachable tool.  Omission fails closed
-    — ma_plan_schema.py:488-492 rejects set_checker on any name missing
+    — plan_schema.py:488-492 rejects set_checker on any name missing
     here.
     """
     return {

@@ -110,7 +110,7 @@ def main():
         # The harbor benchmarks have no tau2 gold caches (harvest_gold_ids would
         # FileNotFoundError); empty gold keeps scan_package a structural no-op,
         # mirroring driver E7.1.  Shape MUST be the {class: []} dict — scan_text
-        # calls gold.get() (ma_sanitize.py:114), so a bare set() would
+        # calls gold.get() (sanitize.py:114), so a bare set() would
         # AttributeError.
         gold = ({cls: [] for cls in ma_sanitize.ID_PATTERNS}
                 if args.benchmark == "tb21"
