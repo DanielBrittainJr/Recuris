@@ -60,6 +60,10 @@ API_URL = API_BASE + "/chat/completions"
 MODEL = (os.environ.get("RECURIS_PROXY_MODEL")
          or os.environ.get("RECURIS_META_MODEL", ""))
 REASONING = os.environ.get("PROXY_REASONING_EFFORT", "high")
+# Claude-style launchers spell disabled reasoning ``off`` while OpenAI-shaped
+# endpoints use ``none``.  Keep REASONING unchanged for treatment/audit proof,
+# and translate only the value sent upstream.
+UPSTREAM_REASONING = "none" if REASONING == "off" else REASONING
 TEMPERATURE = float(os.environ.get("PROXY_TEMPERATURE", "0.0"))
 PORT = int(os.environ.get("PROXY_PORT", "4000"))
 STREAM_HEARTBEAT_SECONDS = float(
@@ -235,7 +239,7 @@ def anthropic_to_openai(req: dict) -> dict:
 
     # This proxy is Meta-Agent-only: every Claude Code request uses the same
     # frozen reasoning treatment, including requests carrying a small-model alias.
-    payload["reasoning_effort"] = REASONING
+    payload["reasoning_effort"] = UPSTREAM_REASONING
     if payload["stream"]:
         payload["stream_options"] = {"include_usage": True}
     return payload

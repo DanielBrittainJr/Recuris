@@ -52,6 +52,9 @@ result. Any harness that emits that format can be substituted by pointing
 | `run_claude_code.sh` | reference launcher. Needs Claude Code ≥ 2.1.226 for `--tools`, `--bare`, `--effort` and `--no-session-persistence`. |
 | `claude_code_env.sh` | the environment discipline: bind the CLI to the driver's proxy, disable telemetry and auto-update, and raise the shell-tool timeout so a multi-minute evaluation is not backgrounded out from under the session. |
 | `../proxy/anthropic_openai_proxy.py` | translates the Anthropic-shaped requests the CLI makes into OpenAI-compatible ones, so the meta-agent can run on any provider. |
+| `run_dsh.sh` | DeepSeek Harness launcher. Runs one fresh headless session, enforces the phase's exact tools and paths inside DSH, and projects DSH's native log into the stream-json audit contract. |
+| `dsh_launcher.py` | DSH process/configuration adapter plus lossless timing, token, tool-call and result telemetry. Native DSH logs are retained outside the repository and their path is recorded in each trace. |
+| `dsh_scope_guard.mjs` | DSH-side capability guard. The workspace sandbox remains the outer boundary; this adds Recuris's narrower per-phase allowlist. |
 
 ## Substituting your own
 
@@ -60,6 +63,32 @@ Write a script that satisfies the table above and set:
 ```bash
 export RECURIS_SESSION_LAUNCHER=/path/to/your_launcher.sh
 ```
+
+For DeepSeek Harness:
+
+```bash
+export RECURIS_SESSION_LAUNCHER="$PWD/src/recuris/metaagent/launchers/run_dsh.sh"
+# Optional when `python` is not the Python 3.12 running Recuris:
+export RECURIS_PYTHON=/path/to/python3.12
+```
+
+The Recuris paper reports DeepSeek Harness for Runs B and C, but the public
+artifact does not include that launcher. This adapter is an independent
+implementation of the repository's published eight-argument launcher contract;
+it is not represented as the authors' unreleased DSH configuration.
+
+`dsh` must be on `PATH`. The launcher creates a new isolated DSH home for each
+phase under `$RECURIS_DSH_RUN_ROOT` (or the platform-local application-data
+directory), so no chat context crosses diagnosis, patch, repair, or review
+phases. It uses the driver's loopback Anthropic proxy, which preserves the
+same forced model/reasoning treatment and upstream-model counters as the
+reference launcher.
+
+The normal stream-json trace gains a `dsh_metrics` record containing exact
+wall time, per-model-step latency, per-tool latency, input/output tokens,
+resolved model, scope proof, and the native DSH log path. Set
+`RECURIS_DSH_INPUT_USD_PER_M` and `RECURIS_DSH_OUTPUT_USD_PER_M` only when a
+non-zero API cost estimate is useful; local runs correctly default to `$0`.
 
 Two things are easy to get wrong and expensive to discover late.
 
