@@ -35,6 +35,23 @@ def _reward(result: Path) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
 
+def _family(doc: dict, result: Path) -> str:
+    """The task's family, taken from where the task lives in the task set.
+
+    Deliberately not from the job directory. harbor names that after the job,
+    and render-configs names the job after the arm, so a family read from it
+    carries "bare" or "skill" inside it and the two arms can never share a key.
+    That made the paired comparison, which is the whole point of this command,
+    report "the two arms share no tasks" on every run.
+    """
+    path = str((doc.get("task_id") or {}).get("path") or "").replace("\\", "/")
+    parts = [p for p in path.split("/") if p]
+    if len(parts) >= 2:
+        return parts[-2]
+    group = result.parent.parent.name
+    return group.split("__")[-1] if "__" in group else group
+
+
 def collect(jobs_dir: Path) -> dict[str, list[float]]:
     """Map ``family/task`` to the list of rewards observed for it."""
     per_task: dict[str, list[float]] = defaultdict(list)
@@ -44,11 +61,7 @@ def collect(jobs_dir: Path) -> dict[str, list[float]]:
             continue
         doc = json.loads(result.read_text(encoding="utf-8"))
         task = str(doc.get("task_name") or result.parent.name)
-        # The group directory is named "<job>__<Family>"; two levels up from
-        # result.json is the trial, three is the group.
-        group = result.parent.parent.name
-        family = group.split("__")[-1] if "__" in group else group
-        per_task[f"{family}/{task}"].append(value)
+        per_task[f"{_family(doc, result)}/{task}"].append(value)
     return dict(per_task)
 
 
