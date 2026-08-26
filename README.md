@@ -1,7 +1,10 @@
 <a name="readme-top"></a>
 
 <p align="center">
-  <img src="assets/recuris-logo.png" alt="Recuris" width="460">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/recuris-logo-dark.png">
+    <img src="assets/recuris-logo.png" alt="Recuris" width="460">
+  </picture>
 </p>
 
 <h3 align="center">
@@ -10,8 +13,8 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 
 <p align="center">
   <a href="https://arxiv.org/abs/2608.24876"><img src="https://img.shields.io/badge/arxiv-2608.24876-B31B1B.svg?logo=arxiv" alt="Paper"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Huggingface-DailyPaper-FFD21E.svg?logo=huggingface" alt="Hugging Face Daily Paper"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Coverage-Recuris-2176BC.svg?logo=x" alt="X"></a>
+  <a href="https://huggingface.co/papers/2608.24876"><img src="https://img.shields.io/badge/Huggingface-DailyPaper-FFD21E.svg?logo=huggingface" alt="Hugging Face Daily Paper"></a>
+  <a href="https://x.com/lingyang_pu/status/2092432103954841925"><img src="https://img.shields.io/badge/Coverage-Recuris-2176BC.svg?logo=x" alt="X"></a>
 </p>
 
 <p align="center">
