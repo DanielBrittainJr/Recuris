@@ -9,17 +9,10 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 </h3>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/⏳_Long--Horizon-blueviolet?style=for-the-badge" alt="Long-Horizon" />
-  <img src="https://img.shields.io/badge/🔗_EM--WM_Coupling-blue?style=for-the-badge" alt="EM-WM Coupling" />
-  <img src="https://img.shields.io/badge/🧊_Training--free-success?style=for-the-badge" alt="Training-free" />
-  <img src="https://img.shields.io/badge/🔁_Recursive_Evolution-orange?style=for-the-badge" alt="Recursive Evolution" />
-  <br><br>
   <!-- TODO: replace the # placeholders once the paper and channels are live -->
   <a href="#-citation"><img src="https://img.shields.io/badge/Paper-Coming_Soon-B31B1B.svg?logo=arxiv" alt="Paper"></a>
   <a href="#"><img src="https://img.shields.io/badge/Huggingface-DailyPaper-FFD21E.svg?logo=huggingface" alt="Hugging Face Daily Paper"></a>
   <a href="#"><img src="https://img.shields.io/badge/Coverage-Recuris-2176BC.svg?logo=x" alt="X"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Video-Walkthrough-FF0000.svg?logo=youtube" alt="YouTube"></a>
-  <a href="https://github.com/Gen-Verse/Recuris"><img src="https://img.shields.io/badge/Code-Recuris-24292E.svg?logo=github" alt="Code"></a>
 </p>
 
 <p align="center">
@@ -439,8 +432,8 @@ recuris metaagent run --domain retail --run-id retail_gptoss_v1 \
   title   = {Recursive Experiential--Working Memory Evolution for Long-Horizon Agent Harnesses},
   author  = {Yu, Zhaochen and Wu, Yingcheng and Yin, Zhenfei and Chen, Kaiyuan and
              Zhao, Zhe and Wang, Mengdi and Yan, Shuicheng and Yang, Ling},
-  year    = {2026},
-  url     = {https://github.com/Gen-Verse/Recuris}
+  journal={arXiv preprint arXiv:2608.24876},
+  year    = {2026}
 }
 ```
 
