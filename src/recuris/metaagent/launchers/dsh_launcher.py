@@ -8,8 +8,10 @@ stream-json audit format, while retaining native timing/token data as an extra
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import signal
 import shutil
 import subprocess
 import sys
@@ -27,9 +29,11 @@ CLAUDE_TO_DSH = {
     "Grep": "grep",
     "Edit": "edit",
     "Write": "write",
+    "Context": "context",
 }
 DSH_TO_CLAUDE = {value: key for key, value in CLAUDE_TO_DSH.items()}
 REASONING_LEVELS = {"off", "minimal", "low", "medium", "high", "xhigh", "max"}
+SEARCHABLE_CONTEXT_VERSION = "prime-search-v1"
 
 
 def _write_jsonl(handle: Any, value: dict[str, Any]) -> None:
@@ -116,8 +120,6 @@ def _patch_text(guard_url: str) -> str:
         "tool-skill",
         "plan-mode",
         "command-goal",
-        "subagent",
-        "subagent-spawn-in-process",
         "subagent-fork-in-process",
         "tool-subagent-control",
         "tool-subagent-list-agents",
@@ -144,6 +146,9 @@ def _patch_text(guard_url: str) -> str:
         "- id: tools",
         "  config:",
         "    mode: native",
+        "- id: tool-fs",
+        "  config:",
+        "    readLimit: !!js Number(process.env.RECURIS_DSH_READ_LIMIT)",
         "- id: agent-loop",
         "  config:",
         "    maxParallelToolCalls: 1",
@@ -191,6 +196,63 @@ def _content_text(content: Any) -> str:
     return "\n".join(part for part in parts if part)
 
 
+def _arguments(value: Any) -> dict[str, Any]:
+    try:
+        parsed = json.loads(value) if isinstance(value, str) else value
+    except Exception:
+        return {"_invalid_dsh_arguments": str(value)}
+    return dict(parsed) if isinstance(parsed, dict) else {"_invalid_dsh_arguments": str(value)}
+
+
+def _argument_summary(tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    serialized = json.dumps(
+        arguments, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str
+    )
+    fingerprint = f"{tool}\0{serialized}".encode("utf-8")
+    summary: dict[str, Any] = {
+        "argumentBytes": len(serialized.encode("utf-8")),
+        "requestHash": hashlib.sha256(fingerprint).hexdigest()[:16],
+    }
+    if tool == "read":
+        fields = {
+            "file_path": "path",
+            "offset": "offset",
+            "limit": "limit",
+            "query": "query",
+            "case_sensitive": "caseSensitive",
+            "context_lines": "contextLines",
+            "max_matches": "maxMatches",
+        }
+    elif tool == "glob":
+        fields = {"path": "path", "pattern": "pattern"}
+    elif tool == "grep":
+        fields = {"path": "path", "pattern": "pattern", "include": "include"}
+    elif tool == "context":
+        fields = {
+            "operation": "operation",
+            "query": "query",
+            "key": "key",
+            "max_results": "maxResults",
+            "context_chars": "contextChars",
+        }
+    else:
+        fields = {"file_path": "path"}
+    for source, target in fields.items():
+        if source in arguments:
+            summary[target] = arguments[source]
+    for source, target in (
+        ("content", "contentBytes"),
+        ("old_string", "oldStringBytes"),
+        ("new_string", "newStringBytes"),
+    ):
+        if isinstance(arguments.get(source), str):
+            summary[target] = len(arguments[source].encode("utf-8"))
+    for source, target in (("value", "valueBytes"), ("question", "questionBytes")):
+        if isinstance(arguments.get(source), str):
+            summary[target] = len(arguments[source].encode("utf-8"))
+    return summary
+
+
 @dataclass
 class Projection:
     requested_model: str
@@ -199,7 +261,7 @@ class Projection:
     output_tokens: int = 0
     final_text: str = ""
     resolved_models: set[str] = field(default_factory=set)
-    tool_started: dict[str, tuple[str, int]] = field(default_factory=dict)
+    tool_started: dict[str, dict[str, Any]] = field(default_factory=dict)
     step_started: dict[tuple[int, int], int] = field(default_factory=dict)
     tool_timings: list[dict[str, Any]] = field(default_factory=list)
     model_timings: list[dict[str, Any]] = field(default_factory=list)
@@ -207,6 +269,9 @@ class Projection:
     session_id: str = ""
     created_at_ms: int | None = None
     last_event_ms: int | None = None
+    parent_session_id: str | None = None
+    session_origin: str | None = None
+    delegation_depth: int | None = None
 
     def convert(self, row: dict[str, Any]) -> list[dict[str, Any]]:
         event_type = row.get("type")
@@ -218,6 +283,12 @@ class Projection:
             self.session_id = str(row.get("id") or "")
             created = row.get("createdAt")
             self.created_at_ms = created if isinstance(created, int) else None
+            parent = row.get("parentSession")
+            self.parent_session_id = str(parent) if parent is not None else None
+            origin = row.get("origin")
+            self.session_origin = str(origin) if origin is not None else None
+            depth = row.get("delegationDepth")
+            self.delegation_depth = depth if isinstance(depth, int) else None
             return []
         if event_type == "step/start":
             turn, step = data.get("turn"), data.get("step")
@@ -227,7 +298,15 @@ class Projection:
         if event_type == "tool/call":
             call_id = str(data.get("callId") or "")
             if call_id and isinstance(event_time, int):
-                self.tool_started[call_id] = (str(data.get("name") or ""), event_time)
+                dsh_name = str(data.get("name") or "")
+                arguments = _arguments(data.get("arguments"))
+                self.tool_started[call_id] = {
+                    "tool": dsh_name,
+                    "startedAtMs": event_time,
+                    "turn": data.get("turn"),
+                    "step": data.get("step"),
+                    "arguments": _argument_summary(dsh_name, arguments),
+                }
             return []
         if event_type == "assistant/message":
             return self._assistant(data, row)
@@ -263,15 +342,7 @@ class Projection:
                     text_parts.append(text)
             elif block.get("type") == "tool-call":
                 dsh_name = str(block.get("name") or "")
-                raw_arguments = block.get("arguments")
-                try:
-                    arguments = (
-                        json.loads(raw_arguments)
-                        if isinstance(raw_arguments, str)
-                        else dict(raw_arguments or {})
-                    )
-                except Exception:
-                    arguments = {"_invalid_dsh_arguments": str(raw_arguments)}
+                arguments = _arguments(block.get("arguments"))
                 content.append(
                     {
                         "type": "tool_use",
@@ -329,15 +400,21 @@ class Projection:
             started = self.tool_started.get(call_id)
             event_time = row.get("time")
             if started is not None and isinstance(event_time, int):
-                dsh_name, started_at = started
+                dsh_name = str(started.get("tool") or "")
+                started_at = int(started["startedAtMs"])
                 self.tool_timings.append(
                     {
                         "callId": call_id,
                         "tool": DSH_TO_CLAUDE.get(dsh_name, dsh_name),
+                        "turn": started.get("turn"),
+                        "step": started.get("step"),
                         "startedAtMs": started_at,
                         "finishedAtMs": event_time,
                         "elapsedMs": max(0, event_time - started_at),
                         "isError": is_error,
+                        "resultTextBytes": len(content.encode("utf-8")),
+                        "resultTextLines": content.count("\n") + (1 if content else 0),
+                        "arguments": started.get("arguments") or {},
                     }
                 )
         if not blocks:
@@ -349,6 +426,88 @@ class Projection:
                 "_dsh": {"seq": row.get("seq"), "time": row.get("time")},
             }
         ]
+
+    def retrieval_metrics(self) -> dict[str, Any]:
+        retrieval = [
+            timing for timing in self.tool_timings
+            if timing.get("tool") in {"Read", "Glob", "Grep"}
+        ]
+        counts = {tool: 0 for tool in ("Read", "Glob", "Grep")}
+        seen: set[str] = set()
+        repeated = 0
+        paths: set[str] = set()
+        bounded_reads = 0
+        query_reads = 0
+        ordinary_default_reads = 0
+        for timing in retrieval:
+            tool = str(timing.get("tool"))
+            counts[tool] += 1
+            arguments = timing.get("arguments") if isinstance(timing.get("arguments"), dict) else {}
+            request_hash = str(arguments.get("requestHash") or "")
+            if request_hash in seen:
+                repeated += 1
+            elif request_hash:
+                seen.add(request_hash)
+            path = arguments.get("path")
+            if isinstance(path, str) and path:
+                paths.add(path)
+            if tool == "Read" and arguments.get("limit") is not None:
+                bounded_reads += 1
+            if tool == "Read" and isinstance(arguments.get("query"), str):
+                query_reads += 1
+            if (
+                tool == "Read"
+                and arguments.get("limit") is None
+                and not isinstance(arguments.get("query"), str)
+            ):
+                ordinary_default_reads += 1
+        first_read = next(
+            (index for index, timing in enumerate(retrieval) if timing.get("tool") == "Read"),
+            len(retrieval),
+        )
+        searches_before_read = sum(
+            1 for timing in retrieval[:first_read]
+            if timing.get("tool") in {"Glob", "Grep"}
+        )
+        return {
+            "patternVersion": SEARCHABLE_CONTEXT_VERSION,
+            "calls": len(retrieval),
+            "callsByTool": counts,
+            "firstTool": retrieval[0].get("tool") if retrieval else None,
+            "searchCallsBeforeFirstRead": searches_before_read,
+            "queryReadCalls": query_reads,
+            "explicitLimitReadCalls": bounded_reads,
+            "ordinaryDefaultReadCalls": ordinary_default_reads,
+            "repeatedRequestCalls": repeated,
+            "uniquePaths": sorted(paths),
+            "resultTextBytes": sum(int(timing.get("resultTextBytes") or 0) for timing in retrieval),
+            "resultTextLines": sum(int(timing.get("resultTextLines") or 0) for timing in retrieval),
+            "elapsedMs": sum(int(timing.get("elapsedMs") or 0) for timing in retrieval),
+            "errorCalls": sum(1 for timing in retrieval if timing.get("isError")),
+        }
+
+    def context_metrics(self) -> dict[str, Any]:
+        calls = [
+            timing for timing in self.tool_timings
+            if timing.get("tool") == "Context"
+        ]
+        counts: dict[str, int] = {}
+        for timing in calls:
+            arguments = timing.get("arguments")
+            operation = (
+                str(arguments.get("operation") or "unknown")
+                if isinstance(arguments, dict) else "unknown"
+            )
+            counts[operation] = counts.get(operation, 0) + 1
+        return {
+            "calls": len(calls),
+            "callsByOperation": counts,
+            "elapsedMs": sum(int(timing.get("elapsedMs") or 0) for timing in calls),
+            "resultTextBytes": sum(
+                int(timing.get("resultTextBytes") or 0) for timing in calls
+            ),
+            "errorCalls": sum(1 for timing in calls if timing.get("isError")),
+        }
 
 
 class SessionTail:
@@ -364,8 +523,9 @@ class SessionTail:
         if self.path is None:
             matches = sorted(self.root.rglob("session.jsonl")) if self.root.exists() else []
             if matches:
-                if len(matches) != 1:
-                    raise RuntimeError(f"expected one DSH session log, found {len(matches)}")
+                # The root session is created before any Context worker. Keep
+                # tailing that first log even when one-shot child sessions are
+                # added later; they are projected separately after settlement.
                 self.path = matches[0]
         if self.path is None:
             return
@@ -388,6 +548,46 @@ class SessionTail:
                 _write_jsonl(self.output, projected)
 
 
+def _project_session(path: Path, requested_model: str) -> Projection:
+    projection = Projection(requested_model=requested_model, started_monotonic=0.0)
+    with path.open("r", encoding="utf-8") as source:
+        for line in source:
+            if line.strip():
+                projection.convert(json.loads(line))
+    return projection
+
+
+def _child_session_metrics(
+    session_root: Path, root_path: Path | None, requested_model: str
+) -> tuple[list[dict[str, Any]], list[Projection]]:
+    values: list[dict[str, Any]] = []
+    projections: list[Projection] = []
+    root_resolved = root_path.resolve() if root_path is not None else None
+    for session_path in sorted(session_root.rglob("session.jsonl")):
+        if root_resolved is not None and session_path.resolve() == root_resolved:
+            continue
+        child = _project_session(session_path, requested_model)
+        if child.session_origin != "subagent" and child.parent_session_id is None:
+            continue
+        projections.append(child)
+        values.append(
+            {
+                "sessionId": child.session_id,
+                "parentSessionId": child.parent_session_id,
+                "delegationDepth": child.delegation_depth,
+                "rawSession": str(session_path),
+                "inputTokens": child.input_tokens,
+                "outputTokens": child.output_tokens,
+                "resolvedModels": sorted(child.resolved_models),
+                "turnReason": child.turn_reason,
+                "modelTimings": child.model_timings,
+                "toolTimings": child.tool_timings,
+                "retrieval": child.retrieval_metrics(),
+            }
+        )
+    return values, projections
+
+
 def _version(command: list[str], environment: dict[str, str]) -> str:
     try:
         result = subprocess.run(
@@ -404,8 +604,59 @@ def _version(command: list[str], environment: dict[str, str]) -> str:
         return "unknown"
 
 
+def _stop_process_tree(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/pid", str(process.pid), "/t", "/f"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
+    try:
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        if os.name != "nt":
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        process.wait(timeout=10)
+
+
 def _price(tokens: int, env_name: str) -> float:
     return (tokens / 1_000_000) * float(os.environ.get(env_name, "0"))
+
+
+def _context_state_metrics(value: dict[str, Any]) -> dict[str, Any]:
+    entries = value.get("entries") if isinstance(value.get("entries"), dict) else {}
+    entry_metrics = []
+    for key, raw in sorted(entries.items()):
+        entry = raw if isinstance(raw, dict) else {}
+        text = str(entry.get("value") or "")
+        entry_metrics.append(
+            {
+                "key": str(key),
+                "valueBytes": len(text.encode("utf-8")),
+                "updatedAtMs": entry.get("updatedAtMs"),
+            }
+        )
+    operations = (
+        value.get("operations") if isinstance(value.get("operations"), list) else []
+    )
+    return {
+        "version": value.get("version"),
+        "createdAtMs": value.get("createdAtMs"),
+        "updatedAtMs": value.get("updatedAtMs"),
+        "entries": entry_metrics,
+        "operations": operations,
+    }
 
 
 def run(argv: list[str]) -> int:
@@ -435,6 +686,7 @@ def run(argv: list[str]) -> int:
     settings_path = run_home / "settings.yaml"
     patch_path = run_home / "recuris.patch.yml"
     scope_report = run_home / "scope-report.json"
+    context_state = run_home / "context-state.json"
     dsh_stdout = run_home / "dsh.stdout.txt"
     dsh_stderr = run_home / "dsh.stderr.txt"
     settings_path.write_text(
@@ -456,8 +708,21 @@ def run(argv: list[str]) -> int:
             "RECURIS_DSH_SESSION_ROOT": str(session_root),
             "RECURIS_DSH_SCOPE_FILE": str(Path(scope_file).resolve()),
             "RECURIS_DSH_SCOPE_REPORT": str(scope_report),
+            "RECURIS_DSH_CONTEXT_STATE": str(context_state),
             "RECURIS_DSH_TOOLS": tools_csv,
             "RECURIS_DSH_WORKSPACE": str(workspace),
+            "RECURIS_DSH_READ_LIMIT": str(
+                int(os.environ.get("RECURIS_DSH_READ_LIMIT", "240"))
+            ),
+            "RECURIS_DSH_CONTEXT_CHILD_MAX_TOKENS": str(
+                int(os.environ.get("RECURIS_DSH_CONTEXT_CHILD_MAX_TOKENS", "1536"))
+            ),
+            "RECURIS_DSH_CONTEXT_CHILD_TIMEOUT_MS": str(
+                int(os.environ.get("RECURIS_DSH_CONTEXT_CHILD_TIMEOUT_MS", "20000"))
+            ),
+            "RECURIS_DSH_CONTEXT_MAX_DELEGATIONS": str(
+                int(os.environ.get("RECURIS_DSH_CONTEXT_MAX_DELEGATIONS", "3"))
+            ),
         }
     )
     dsh_version = _version(command, environment)
@@ -487,12 +752,20 @@ def run(argv: list[str]) -> int:
                 env=environment,
                 stdout=stdout_handle,
                 stderr=stderr_handle,
+                creationflags=(
+                    getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+                    if os.name == "nt" else 0
+                ),
+                start_new_session=os.name != "nt",
             )
             tail = SessionTail(session_root, projection, output)
-            while process.poll() is None:
-                tail.poll()
-                time.sleep(0.10)
-            tail.poll(final=True)
+            try:
+                while process.poll() is None:
+                    tail.poll()
+                    time.sleep(0.10)
+                tail.poll(final=True)
+            finally:
+                _stop_process_tree(process)
             returncode = int(process.returncode or 0)
 
         stdout_text = dsh_stdout.read_text(encoding="utf-8", errors="replace").strip()
@@ -512,11 +785,27 @@ def run(argv: list[str]) -> int:
         else:
             scope_error = "DSH did not produce its phase-scope report"
 
+        child_metrics, child_projections = _child_session_metrics(
+            session_root, tail.path, model
+        )
+        child_input_tokens = sum(item.input_tokens for item in child_projections)
+        child_output_tokens = sum(item.output_tokens for item in child_projections)
+        total_input_tokens = projection.input_tokens + child_input_tokens
+        total_output_tokens = projection.output_tokens + child_output_tokens
+        all_resolved_models = set(projection.resolved_models)
+        for child in child_projections:
+            all_resolved_models.update(child.resolved_models)
+        context_state_value: dict[str, Any] = {}
+        if context_state.is_file():
+            context_state_value = _context_state_metrics(
+                json.loads(context_state.read_text(encoding="utf-8"))
+            )
+
         model_error = ""
-        if projection.resolved_models and projection.resolved_models != {model}:
+        if all_resolved_models and all_resolved_models != {model}:
             model_error = (
                 "DSH resolved unexpected model(s): "
-                + ", ".join(sorted(projection.resolved_models))
+                + ", ".join(sorted(all_resolved_models))
             )
         completed = isinstance(projection.turn_reason, dict) and projection.turn_reason.get("kind") == "completed"
         if returncode == 0 and not completed:
@@ -525,8 +814,8 @@ def run(argv: list[str]) -> int:
             returncode = 1
 
         elapsed_seconds = time.monotonic() - projection.started_monotonic
-        estimated_cost = _price(projection.input_tokens, "RECURIS_DSH_INPUT_USD_PER_M")
-        estimated_cost += _price(projection.output_tokens, "RECURIS_DSH_OUTPUT_USD_PER_M")
+        estimated_cost = _price(total_input_tokens, "RECURIS_DSH_INPUT_USD_PER_M")
+        estimated_cost += _price(total_output_tokens, "RECURIS_DSH_OUTPUT_USD_PER_M")
         metrics = {
             "type": "dsh_metrics",
             "sessionId": projection.session_id,
@@ -535,12 +824,27 @@ def run(argv: list[str]) -> int:
             "rawSession": str(tail.path) if tail.path else None,
             "startedAtUnix": started_wall,
             "elapsedSeconds": round(elapsed_seconds, 3),
-            "inputTokens": projection.input_tokens,
-            "outputTokens": projection.output_tokens,
+            "inputTokens": total_input_tokens,
+            "outputTokens": total_output_tokens,
+            "rootInputTokens": projection.input_tokens,
+            "rootOutputTokens": projection.output_tokens,
+            "childInputTokens": child_input_tokens,
+            "childOutputTokens": child_output_tokens,
             "estimatedCostUsd": round(estimated_cost, 8),
             "toolTimings": projection.tool_timings,
             "modelTimings": projection.model_timings,
-            "resolvedModels": sorted(projection.resolved_models),
+            "searchableContext": {
+                **projection.retrieval_metrics(),
+                "enabled": bool(
+                    (scope_report_value.get("searchableContext") or {}).get("enabled")
+                ),
+            },
+            "context": {
+                **projection.context_metrics(),
+                "state": context_state_value,
+                "workers": child_metrics,
+            },
+            "resolvedModels": sorted(all_resolved_models),
             "turnReason": projection.turn_reason,
             "scope": scope_report_value,
         }
@@ -575,8 +879,8 @@ def run(argv: list[str]) -> int:
                 "result": result_text,
                 "duration_ms": round(elapsed_seconds * 1000),
                 "usage": {
-                    "input_tokens": projection.input_tokens,
-                    "output_tokens": projection.output_tokens,
+                    "input_tokens": total_input_tokens,
+                    "output_tokens": total_output_tokens,
                 },
                 "dsh_metrics": metrics,
             },

@@ -5610,7 +5610,24 @@ class Driver:
             readable_paths, writable_paths, settings_path,
             denied_read_paths=denied_read_paths,
             denied_directory_reads=denied_directory_reads)
+        # RECURIS_SESSION_LAUNCHER swaps in a different coding agent behind the
+        # identical eight-argument contract (prompt file, transcript path, tool
+        # set, permission rules, model, proxy port, reasoning, settings). The
+        # audit and the proxy model proof read the same stream-json transcript
+        # whichever harness produced it. See launchers/README.md.
+        launcher = os.environ.get(
+            "RECURIS_SESSION_LAUNCHER", str(HERE / "launchers" / "run_claude_code.sh"))
         tool_names = [tool for tool in tools.split() if tool]
+        dsh_context = (
+            Path(launcher).name.lower() == "run_dsh.sh" and
+            os.environ.get("RECURIS_DSH_CONTEXT", "1").strip().lower()
+            not in {"0", "false", "off", "no"} and
+            prompt_template_sha256 is None and
+            name != "qualification" and
+            "Read" in tool_names
+        )
+        if dsh_context and "Context" not in tool_names:
+            tool_names.append("Context")
         allowed_rules = []
         for tool in tool_names:
             if tool == "Read":
@@ -5619,20 +5636,18 @@ class Driver:
                 # Claude Code applies Read deny rules to built-in search tools;
                 # the trace is also path-audited after the session.
                 allowed_rules.append(tool)
+            elif tool == "Context" and dsh_context:
+                # Context has no workspace path of its own. The DSH adapter
+                # limits it to run-local history/scratch state and read-only
+                # child agents; their filesystem tools retain the rules below.
+                pass
             elif tool not in {"Edit", "Write"}:
                 raise RuntimeError(f"unscoped Claude Code tool is forbidden: {tool}")
         allowed_rules.extend(writable_rules)
-        # RECURIS_SESSION_LAUNCHER swaps in a different coding agent behind the
-        # identical eight-argument contract (prompt file, transcript path, tool
-        # set, permission rules, model, proxy port, reasoning, settings). The
-        # audit and the proxy model proof read the same stream-json transcript
-        # whichever harness produced it. See launchers/README.md.
-        launcher = os.environ.get(
-            "RECURIS_SESSION_LAUNCHER", str(HERE / "launchers" / "run_claude_code.sh"))
         cmd = [self.bash, launcher, str(pf), str(out),
                ",".join(tool_names), " ".join(allowed_rules), self.a.meta_model,
                str(self.a.proxy_port), self.a.meta_reasoning, str(settings_path)]
-        self.log(f"CC session {name} start (tools: {tools})")
+        self.log(f"CC session {name} start (tools: {' '.join(tool_names)})")
         before = self.inventory() if audit_inventory else None
         p = subprocess.Popen(cmd, cwd=str(ROOT), stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True)

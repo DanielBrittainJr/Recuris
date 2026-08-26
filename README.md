@@ -379,6 +379,11 @@ trajectories from the agent being improved, the **downstream** model. It patches
 one component of the memory, and a gate admits the patch only on paired held-out
 evidence.
 
+To run the upstream phases through a local tool-calling model with DeepSeek
+Harness, including searchable phase history, persistent working memory,
+read-only context workers, and parent/child telemetry, see
+[Running local DSH agents](docs/local-dsh-agents.md).
+
 ```bash
 npm install -g @anthropic-ai/claude-code
 ```
