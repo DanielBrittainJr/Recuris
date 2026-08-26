@@ -192,6 +192,18 @@ def main(argv: list[str] | None = None) -> int:
         path.write_text(text, encoding="utf-8")
         print(f"[recuris] {path}")
     print(f"[recuris] {len(families)} configs written to {out}")
+    # The agent these configs name lives in SkillFlow's own tree and harbor
+    # imports it by Python path, so the run fails with "No module named 'libs'"
+    # unless SkillFlow is importable. Print the command that works rather than
+    # leave the reader to find that out from a TaskGroup traceback.
+    skillflow_root = tasks_root.parent
+    if skillflow_root.name == "test_tasks":
+        skillflow_root = skillflow_root.parent
+    print(
+        "[recuris] run them one at a time, with SkillFlow importable:\n"
+        f"  export PYTHONPATH={skillflow_root}\n"
+        f'  for cfg in {out}/{args.arm}_*.yaml; do harbor run -c "$cfg" --yes; done'
+    )
     return 0
 
 

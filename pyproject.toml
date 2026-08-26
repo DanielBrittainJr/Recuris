@@ -23,6 +23,10 @@ classifiers = [
 # benchmark, no Docker and no model client.
 dependencies = [
   "pyyaml>=6.0",
+  # The kernel logs through loguru: runtime, grounding, the EM store, the
+  # sanitizer and the retrieval builtin all import it at module scope, so
+  # importing recuris at all requires it.
+  "loguru>=0.7",
 ]
 
 [project.optional-dependencies]
