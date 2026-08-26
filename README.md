@@ -430,8 +430,7 @@ recuris metaagent run --domain retail --run-id retail_gptoss_v1 \
 ```bibtex
 @article{yu2026recuris,
   title   = {Recursive Experiential--Working Memory Evolution for Long-Horizon Agent Harnesses},
-  author  = {Yu, Zhaochen and Wu, Yingcheng and Yin, Zhenfei and Chen, Kaiyuan and
-             Zhao, Zhe and Wang, Mengdi and Yan, Shuicheng and Yang, Ling},
+  author  = {Yu, Zhaochen and Wu, Yingcheng and Yin, Zhenfei and Chen, Kaiyuan and Zhao, Zhe and Wang, Mengdi and Yan, Shuicheng and Yang, Ling},
   journal={arXiv preprint arXiv:2608.24876},
   year    = {2026}
 }
