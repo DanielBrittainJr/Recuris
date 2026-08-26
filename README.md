@@ -9,8 +9,7 @@ Recursive Experiential–Working Memory Evolution for Long-Horizon Agent Harness
 </h3>
 
 <p align="center">
-  <!-- TODO: replace the # placeholders once the paper and channels are live -->
-  <a href="#-citation"><img src="https://img.shields.io/badge/Paper-Coming_Soon-B31B1B.svg?logo=arxiv" alt="Paper"></a>
+  <a href="https://arxiv.org/abs/2608.24876"><img src="https://img.shields.io/badge/arxiv-2608.24876-B31B1B.svg?logo=arxiv" alt="Paper"></a>
   <a href="#"><img src="https://img.shields.io/badge/Huggingface-DailyPaper-FFD21E.svg?logo=huggingface" alt="Hugging Face Daily Paper"></a>
   <a href="#"><img src="https://img.shields.io/badge/Coverage-Recuris-2176BC.svg?logo=x" alt="X"></a>
 </p>
